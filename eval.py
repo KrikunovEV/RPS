@@ -1,4 +1,4 @@
-from RockPaperScissors import Environment3p, Choice
+from RockPaperScissors import Environment3p
 from Agent import Agent
 
 
@@ -26,22 +26,18 @@ for r in range(rounds):
 
         # Make a guess
 
-        guess = agents[1].make_guess(obs)
-        #print(f'Guess')
+        guess = agents[1].make_guess(obs, eval=True)
+        print(f'Guess {guess}')
 
         # Make a decision
 
         choices = [
-            agents[0]((obs, guess)),
-            agents[1](obs),
-            agents[2](obs),
+            agents[0]((obs, guess), eval=True),
+            agents[1](obs, eval=True),
+            agents[2](obs, eval=True)
         ]
-
         # Take a reward
 
         obs, rewards = env.action(choices)
         for id, agent in enumerate(agents):
             agent.give_reward(rewards[id])
-
-    for agent in agents:
-        agent.train()

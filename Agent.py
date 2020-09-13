@@ -21,13 +21,17 @@ class Agent:
             self.model = Model(obs_space, action_space)
         self.optimizer = optim.SGD(self.model.parameters(), lr=0.00001)
 
-    def __call__(self, obs):
+    def __call__(self, obs, eval: bool = False):
         if self.negotiate:
             logits = self.model(obs[0], obs[1])
         else:
             logits = self.model(obs)
-        choice = logits.argmax()
-        self.logs.append(torch.log(logits[choice]))
+        policy = torch.softmax(logits, dim=-1)
+        if eval:
+            choice = policy.argmax()
+        else:
+            choice = np.random.choice(policy.shape[0], 1, p=policy.detach().numpy())[0]
+        self.logs.append(torch.log(policy[choice]))
         return choice
 
     def give_reward(self, reward):
@@ -52,11 +56,14 @@ class Agent:
 
         self.logs, self.rewards = [], []
 
-    def make_guess(self, obs):
-
+    def make_guess(self, obs, eval: bool = False):
         guess = self.model(obs)
         guess = guess.detach()
-        choice = guess.argmax()
+        policy = torch.softmax(guess, dim=-1)
+        if eval:
+            choice = policy.argmax()
+        else:
+            choice = np.random.choice(policy.shape[0], 1, p=policy.detach().numpy())[0]
 
         guess = np.zeros(guess.shape)
         guess[choice] = 1

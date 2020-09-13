@@ -48,7 +48,7 @@ class Environment3p:
             reward = np.zeros(self.players)
 
         for p in range(self.players):
-            self.__print(f'Player {p}: {choices[p].name}' + ('(winner)' if reward[p] != 0 else ''))
+            self.__print(f'Player {p}: {Choice(int(choices[p])).name}' + ('(winner)' if reward[p] != 0 else ''))
 
         offset = 3 * 3 * self.step
         if self.step < self.steps - 1:
