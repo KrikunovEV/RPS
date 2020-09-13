@@ -10,21 +10,13 @@ class Choice(IntEnum):
 
 class Environment3p:
 
-    def __init__(self, steps: int, debug: bool = False):
-        self.steps = steps
+    def __init__(self, debug: bool = False):
         self.players = 3
         self.debug = debug
-        self.obs_space = self.players * len(Choice) * (steps - 1)
-        self.reset()
+        self.obs_space = self.players * len(Choice)
+        self.obs = np.zeros(self.obs_space)
 
     def action(self, choices):
-
-        if self.step == self.steps:
-            print('Please, reset the environment.')
-            return np.zeros(self.players)
-
-        self.__print(f'\nStep: {self.step}')
-
         choice1 = choices[0]
         choice2 = choices[1]
         choice3 = choices[2]
@@ -50,18 +42,10 @@ class Environment3p:
         for p in range(self.players):
             self.__print(f'Player {p}: {Choice(int(choices[p])).name}' + ('(winner)' if reward[p] != 0 else ''))
 
-        offset = 3 * 3 * self.step
-        if self.step < self.steps - 1:
-            self.obs[offset + choice1] = 1
-            self.obs[offset + 3 + choice2] = 1
-            self.obs[offset + 6 + choice3] = 1
-        self.step += 1
+        self.obs[choice1] = 1
+        self.obs[choice2] = 1
+        self.obs[choice3] = 1
         return self.obs, reward
-
-    def reset(self):
-        self.step = 0
-        self.obs = np.zeros(self.obs_space)
-        return self.obs
 
     def get_obs_space(self):
         return self.obs_space

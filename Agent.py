@@ -6,10 +6,11 @@ import torch.optim as optim
 
 class Agent:
 
-    def __init__(self, id: int, obs_space, action_space, negotiate: bool):
+    def __init__(self, id: int, obs_space, action_space, negotiate: bool = False, eval: bool = False):
         self.id = id
         self.original_id = id
         self.negotiate = negotiate
+        self.eval = eval
 
         self.rewards, self.logs = [], []
 
@@ -21,13 +22,14 @@ class Agent:
             self.model = Model(obs_space, action_space)
         self.optimizer = optim.SGD(self.model.parameters(), lr=0.00001)
 
-    def __call__(self, obs, eval: bool = False):
+    def __call__(self, obs):
         if self.negotiate:
             logits = self.model(obs[0], obs[1])
         else:
             logits = self.model(obs)
         policy = torch.softmax(logits, dim=-1)
-        if eval:
+        #print(policy)
+        if self.eval:
             choice = policy.argmax()
         else:
             choice = np.random.choice(policy.shape[0], 1, p=policy.detach().numpy())[0]
@@ -56,11 +58,11 @@ class Agent:
 
         self.logs, self.rewards = [], []
 
-    def make_guess(self, obs, eval: bool = False):
+    def make_guess(self, obs):
         guess = self.model(obs)
         guess = guess.detach()
         policy = torch.softmax(guess, dim=-1)
-        if eval:
+        if self.eval:
             choice = policy.argmax()
         else:
             choice = np.random.choice(policy.shape[0], 1, p=policy.detach().numpy())[0]
