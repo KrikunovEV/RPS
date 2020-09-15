@@ -26,15 +26,15 @@ class Environment3p:
 
         elif choice1 == choice2:
             diff = choice3 - choice1
-            reward = np.array([0., 0., 1.]) if diff == 1 or diff == -2 else np.array([0.5, 0.5, 0.])
+            reward = np.array([0., 0., 1.]) if diff == 1 or diff == -2 else np.array([1., 1., 0.])
 
         elif choice2 == choice3:
             diff = choice1 - choice3
-            reward = np.array([1., 0., 0.]) if diff == 1 or diff == -2 else np.array([0., 0.5, 0.5])
+            reward = np.array([1., 0., 0.]) if diff == 1 or diff == -2 else np.array([0., 1., 1.])
 
         elif choice1 == choice3:
             diff = choice2 - choice3
-            reward = np.array([0., 1., 0.]) if diff == 1 or diff == -2 else np.array([0.5, 0., 0.5])
+            reward = np.array([0., 1., 0.]) if diff == 1 or diff == -2 else np.array([1., 0., 1.])
 
         else:
             reward = np.zeros(self.players)
@@ -43,8 +43,8 @@ class Environment3p:
             self.__print(f'Player {p}: {Choice(int(choices[p])).name}' + ('(winner)' if reward[p] != 0 else ''))
 
         self.obs[choice1] = 1
-        self.obs[choice2] = 1
-        self.obs[choice3] = 1
+        self.obs[3 + choice2] = 1
+        self.obs[6 + choice3] = 1
         return self.obs, reward
 
     def get_obs_space(self):

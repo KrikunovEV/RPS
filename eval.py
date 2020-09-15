@@ -1,15 +1,16 @@
 from RockPaperScissors import Environment3p
 from Agent import Agent
+import numpy as np
 
 
-rounds = 100
+rounds = 10000
 players = 3
 path = 'test/'
 eval = False
 
 env = Environment3p(debug=True)
 agents = [
-    Agent(0, env.get_obs_space(), env.get_action_space(), eval=eval),
+    Agent(0, env.get_obs_space(), env.get_action_space(), eval=eval, negotiate=True),
     Agent(1, env.get_obs_space(), env.get_action_space(), eval=eval),
     Agent(2, env.get_obs_space(), env.get_action_space(), eval=eval),
 ]
@@ -24,13 +25,15 @@ for r in range(rounds):
     print(f'Round {r}')
 
     # Make a guess
-    #guess = agents[1].make_guess(obs, eval=True)
+    guess = agents[1](obs)
+    guess_one_hot = np.zeros(env.get_action_space())
+    guess_one_hot[guess] = 1
     #print(f'Guess {guess}')
 
     # Make a decision
     choices = [
-        agents[0](obs),
-        agents[1](obs),
+        agents[0]((obs, guess_one_hot)),
+        guess,
         agents[2](obs)
     ]
 

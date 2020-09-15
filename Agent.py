@@ -58,7 +58,7 @@ class Agent:
 
         self.logs, self.rewards = [], []
 
-    def make_guess(self, obs):
+    def make_guess(self, obs, one_hot: bool = False):
         guess = self.model(obs)
         guess = guess.detach()
         policy = torch.softmax(guess, dim=-1)
@@ -67,9 +67,12 @@ class Agent:
         else:
             choice = np.random.choice(policy.shape[0], 1, p=policy.detach().numpy())[0]
 
-        guess = np.zeros(guess.shape)
-        guess[choice] = 1
-        return guess
+        action = choice
+        if one_hot:
+            action = np.zeros(guess.shape)
+            action[choice] = 1
+
+        return action
 
     def save_agent_state(self, directory: str):
         state = {
