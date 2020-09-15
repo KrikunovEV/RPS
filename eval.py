@@ -6,42 +6,43 @@ import numpy as np
 rounds = 10000
 players = 3
 path = 'test/'
-eval = False
+eval = True
 
 env = Environment3p(debug=True)
-agents = [
-    Agent(0, env.get_obs_space(), env.get_action_space(), eval=eval, negotiate=True),
-    Agent(1, env.get_obs_space(), env.get_action_space(), eval=eval),
-    Agent(2, env.get_obs_space(), env.get_action_space(), eval=eval),
-]
+agent = Agent(0, 3, env.get_action_space(), negotiate=True, eval=eval)
+agent.load_agent_state(f'{path}0.pt')
+parties_won = [0, 0, 0]
+reward_cum = [[0], [0], [0]]
 
-for id, agent in enumerate(agents):
-    agent.load_agent_state(f'{path}{id}.pt')
-    agent.parties_won = 0
-    agent.reward_cum = [0]
+cooperate, greedy = 0, 0
 
 obs = env.obs
 for r in range(rounds):
     print(f'Round {r}')
 
     # Make a guess
-    guess = agents[1](obs)
+    guess = np.random.randint(env.get_action_space())
     guess_one_hot = np.zeros(env.get_action_space())
     guess_one_hot[guess] = 1
-    #print(f'Guess {guess}')
 
     # Make a decision
     choices = [
-        agents[0]((obs, guess_one_hot)),
+        agent.make_guess(guess_one_hot),
         guess,
-        agents[2](obs)
+        np.random.randint(env.get_action_space())
     ]
 
     # Take a reward
     obs, rewards = env.action(choices)
-    for id, agent in enumerate(agents):
-        agent.give_reward(rewards[id])
+    for i, r in enumerate(rewards):
+        if r > 0:
+            parties_won[i] += 1
+            reward_cum[i].append(reward_cum[i][-1] + r)
+    if rewards[0] != 0 and rewards[1] != 0:
+        cooperate += 1
+    elif rewards[0] > 0 and rewards[1] == 0:
+        greedy += 1
 
 print('\nAgents\' scores')
-for agent in agents:
-    print(agent.reward_cum[-1])
+print(parties_won)
+print(cooperate, greedy)

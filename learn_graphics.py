@@ -3,30 +3,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-path = 'test/'
-players = 3
+path = 'test2/'
+players = 1
 
-fig, ax = plt.subplots(players, figsize=(16, 9))
-for i in range(players):
-    state = torch.load(path + str(i) + '.pt')
-    data = state['losses']
-    parties_won = state['parties_won']
-    reward_cum = state['reward_cum']
-    ax[i].set_title(f'wins: {parties_won}, score = {reward_cum[-1]}')
-    ax[i].plot(np.convolve(data, np.full(31, 1. / 31), mode='valid'))
-    ax[i].set_xlabel('episode')
-    ax[i].set_ylabel('loss')
-fig.tight_layout()
+state = torch.load(path + '0' + '.pt')
+data = state['losses']
+parties_won = state['parties_won']
+reward_cum = state['reward_cum']
+plt.title(f'wins: {parties_won}, score = {reward_cum[-1]}')
+plt.plot(np.convolve(data, np.full(31, 1. / 31), mode='valid'))
+plt.xlabel('episode')
+plt.ylabel('loss')
+plt.tight_layout()
 plt.savefig(f'{path}loss.png')
 
-fig, ax = plt.subplots(players, figsize=(16, 9))
-for i in range(players):
-    state = torch.load(path + str(i) + '.pt')
-    parties_won = state['parties_won']
-    reward_cum = state['reward_cum']
-    ax[i].set_title(f'wins: {parties_won}, score = {reward_cum[-1]}')
-    ax[i].plot(reward_cum)
-    ax[i].set_xlabel('episode')
-    ax[i].set_ylabel('cumulative reward')
-fig.tight_layout()
+plt.title(f'wins: {parties_won}, score = {reward_cum[-1]}')
+plt.plot(reward_cum)
+plt.xlabel('episode')
+plt.ylabel('cumulative reward')
+plt.tight_layout()
 plt.savefig(f'{path}reward.png')

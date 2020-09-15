@@ -1,4 +1,4 @@
-from Model import ModelNeg, Model
+from Model import ModelCom
 import numpy as np
 import torch
 import torch.optim as optim
@@ -16,17 +16,17 @@ class Agent:
 
         self.losses, self.reward_cum, self.parties_won = [], [0], 0
 
-        if negotiate:
-            self.model = ModelNeg(obs_space, action_space, action_space)
-        else:
-            self.model = Model(obs_space, action_space)
-        self.optimizer = optim.SGD(self.model.parameters(), lr=0.00001)
+        #if negotiate:
+        #    self.model = ModelNeg(obs_space, action_space, action_space)
+        #else:
+        self.model = ModelCom(obs_space, action_space)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=0.001)
 
     def __call__(self, obs):
-        if self.negotiate:
-            logits = self.model(obs[0], obs[1])
-        else:
-            logits = self.model(obs)
+        #if self.negotiate:
+        #    logits = self.model(obs[0], obs[1])
+        #else:
+        logits = self.model(obs)
         policy = torch.softmax(logits, dim=-1)
         #print(policy)
         if self.eval:
