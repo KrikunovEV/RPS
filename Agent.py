@@ -1,5 +1,5 @@
-from Model import PredictionModel, GenerationModel
 import torch
+from Model import PredictionModel, GenerationModel
 from enum import Enum
 
 
@@ -8,20 +8,22 @@ class Agent:
         Categorical = 1
         Numerical = 2
 
-    def __init__(self, label: str, message_type: MessageType, lr: float, obs_space: int, action_space: int):
+    def __init__(self, label: str, message_type: MessageType, lr: float, obs_space: int, action_space: int, steps: int):
         self.agent_label = label + (' categorical' if message_type == self.MessageType.Categorical else ' numerical')
         self.message_type = message_type
+        self.action_space = action_space
 
         self.generator = GenerationModel(obs_space=obs_space, action_space=action_space)
         self.predictor = PredictionModel(obs_space=obs_space, action_space=action_space)
-        self.optimizer = torch.optim.SGD(list(self.generator.parameters()) + list(self.predictor.parameters()), lr=lr)
+        self.optimizer = torch.optim.Adam(list(self.generator.parameters()) + list(self.predictor.parameters()), lr=lr)
         self.loss_fn = torch.nn.MSELoss() if message_type == self.MessageType.Numerical else torch.nn.CrossEntropyLoss()
 
-        self.generated_messages = [torch.zeros(20)]
+        self.generated_messages = [torch.zeros(self.action_space)]
         self.received_messages = []
 
         self.loss_metric = []
         self.accuracy_metric = []
+        self.accuracy_by_step_metric = torch.zeros(steps - 1)
 
     def get_last_message(self):
         return self.generated_messages[-1].detach()  # do detach to make sure that gradient won't be corrupted
@@ -44,19 +46,33 @@ class Agent:
             target = target.argmax(dim=1)
 
         loss = self.loss_fn(predicted, target)
+        self.loss_metric.append(loss.item())
+
         if self.message_type == self.MessageType.Categorical:
             accuracy = torch.mean(predicted.argmax(dim=1) == target, dtype=torch.float)
-        else:
-            accuracy = torch.mean(predicted.argmax(dim=1) == target.argmax(dim=1), dtype=torch.float)
+            self.accuracy_metric.append(accuracy.item())
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        self.loss_metric.append(loss.item())
-        self.accuracy_metric.append(accuracy.item())
+        self.generated_messages = [torch.zeros(self.action_space)]
+        self.received_messages = []
 
-        self.generated_messages = [torch.zeros(20)]
+    def eval(self):
+        self.generated_messages = self.generated_messages[:-2]  # nothing to predict for the last messages
+        self.received_messages = self.received_messages[1:]  # first message is zero tensor
+
+        x = torch.stack(self.generated_messages)
+        predicted = self.predictor(x)
+        target = torch.stack(self.received_messages)
+        if self.message_type == self.MessageType.Categorical:
+            target = target.argmax(dim=1)
+
+        if self.message_type == self.MessageType.Categorical:
+            self.accuracy_by_step_metric += predicted.argmax(dim=1) == target
+
+        self.generated_messages = [torch.zeros(self.action_space)]
         self.received_messages = []
 
     '''
