@@ -1,79 +1,65 @@
-from Model import ModelCom
-import numpy as np
+from Model import PredictionModel, GenerationModel
 import torch
-import torch.optim as optim
+from enum import Enum
 
 
 class Agent:
+    class MessageType(Enum):
+        Categorical = 1
+        Numerical = 2
 
-    def __init__(self, id: int, obs_space, action_space, negotiate: bool = False, eval: bool = False):
-        self.id = id
-        self.original_id = id
-        self.negotiate = negotiate
-        self.eval = eval
+    def __init__(self, label: str, message_type: MessageType, lr: float, obs_space: int, action_space: int):
+        self.agent_label = label + (' categorical' if message_type == self.MessageType.Categorical else ' numerical')
+        self.message_type = message_type
 
-        self.rewards, self.logs = [], []
+        self.generator = GenerationModel(obs_space=obs_space, action_space=action_space)
+        self.predictor = PredictionModel(obs_space=obs_space, action_space=action_space)
+        self.optimizer = torch.optim.SGD(list(self.generator.parameters()) + list(self.predictor.parameters()), lr=lr)
+        self.loss_fn = torch.nn.MSELoss() if message_type == self.MessageType.Numerical else torch.nn.CrossEntropyLoss()
 
-        self.losses, self.reward_cum, self.parties_won = [], [0], 0
+        self.generated_messages = [torch.zeros(20)]
+        self.received_messages = []
 
-        #if negotiate:
-        #    self.model = ModelNeg(obs_space, action_space, action_space)
-        #else:
-        self.model = ModelCom(obs_space, action_space)
-        self.optimizer = optim.SGD(self.model.parameters(), lr=0.001)
+        self.loss_metric = []
+        self.accuracy_metric = []
 
-    def __call__(self, obs):
-        #if self.negotiate:
-        #    logits = self.model(obs[0], obs[1])
-        #else:
-        logits = self.model(obs)
-        policy = torch.softmax(logits, dim=-1)
-        #print(policy)
-        if self.eval:
-            choice = policy.argmax()
-        else:
-            choice = np.random.choice(policy.shape[0], 1, p=policy.detach().numpy())[0]
-        self.logs.append(torch.log(policy[choice]))
-        return choice
+    def get_last_message(self):
+        return self.generated_messages[-1].detach()  # do detach to make sure that gradient won't be corrupted
 
-    def give_reward(self, reward):
-        self.rewards.append(reward)
-        self.reward_cum.append(self.reward_cum[-1] + reward)
-        if reward != 0:
-            self.parties_won += 1
+    def generate_message(self, message):
+        if self.message_type == self.MessageType.Categorical:
+            message = torch.Tensor([1 if i == torch.argmax(message) else 0 for i in range(len(message))])
+        self.generated_messages.append(self.generator(torch.Tensor(message)))
+        self.received_messages.append(message)
+        return self.generated_messages[-1].detach()
 
     def train(self):
-        G = 0
-        policy_loss = 0
+        self.generated_messages = self.generated_messages[:-2]  # nothing to predict for the last messages
+        self.received_messages = self.received_messages[1:]  # first message is zero tensor
 
-        for i in reversed(range(len(self.rewards))):
-            G = self.rewards[i] + 0.99 * G
-            policy_loss = policy_loss - self.logs[i] * G
+        x = torch.stack(self.generated_messages)
+        predicted = self.predictor(x)
+        target = torch.stack(self.received_messages)
+        if self.message_type == self.MessageType.Categorical:
+            target = target.argmax(dim=1)
 
-        self.losses.append(policy_loss.item())
+        loss = self.loss_fn(predicted, target)
+        if self.message_type == self.MessageType.Categorical:
+            accuracy = torch.mean(predicted.argmax(dim=1) == target, dtype=torch.float)
+        else:
+            accuracy = torch.mean(predicted.argmax(dim=1) == target.argmax(dim=1), dtype=torch.float)
 
         self.optimizer.zero_grad()
-        policy_loss.backward()
+        loss.backward()
         self.optimizer.step()
 
-        self.logs, self.rewards = [], []
+        self.loss_metric.append(loss.item())
+        self.accuracy_metric.append(accuracy.item())
 
-    def make_guess(self, obs, one_hot: bool = False):
-        guess = self.model(obs)
-        guess = guess.detach()
-        policy = torch.softmax(guess, dim=-1)
-        if self.eval:
-            choice = policy.argmax()
-        else:
-            choice = np.random.choice(policy.shape[0], 1, p=policy.detach().numpy())[0]
+        self.generated_messages = [torch.zeros(20)]
+        self.received_messages = []
 
-        action = choice
-        if one_hot:
-            action = np.zeros(guess.shape)
-            action[choice] = 1
-
-        return action
-
+    '''
     def save_agent_state(self, directory: str):
         state = {
             'model': self.model.state_dict(),
@@ -93,3 +79,4 @@ class Agent:
         self.parties_won = state['parties_won']
         self.reward_cum = state['reward_cum']
         self.original_id = state['id']
+    '''
