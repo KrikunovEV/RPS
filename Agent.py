@@ -14,7 +14,7 @@ def make_one_hot(message):
     return message_
 
 
-class Agent:
+class NegotiationAgent:
 
     def __init__(self, label: str, message_type: MessageType, lr: float, message_space: int, n_agents: int, steps: int):
         self.agent_label = label + (' categorical' if message_type == MessageType.Categorical else ' numerical')
