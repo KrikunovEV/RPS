@@ -32,8 +32,8 @@ class NegotiationAgent:
 
         self.loss_metric = []
         self.accuracy_metric = []
-        self.level_accuracy_metric = torch.zeros(steps - 1)
-        self.distance_metric = torch.zeros(steps - 1)
+        self.step_accuracy_metric = torch.zeros((steps - 1, n_agents - 1))
+        self.step_distance_metric = torch.zeros((steps - 1, n_agents - 1))
 
     def get_last_message(self):
         return self.generated_messages[-1].detach()  # do detach to make sure that gradient won't be corrupted
@@ -119,14 +119,14 @@ class NegotiationAgent:
         predicted = self.predictor(x)
         target = self.received_messages  # already converted to categorical
 
+        # step, agent, message
+        target = target.reshape(-1, self.n_agents - 1, self.message_space)
+        predicted = predicted.reshape(-1, self.n_agents - 1, self.message_space).detach()
+
         if self.message_type == MessageType.Categorical:
-            target = target.reshape(-1, self.message_space)
-            predicted = predicted.reshape(-1, self.message_space).detach()
-            levels = torch.tensor(predicted.argmax(dim=1) == target.argmax(dim=1), dtype=torch.float)
-            levels = levels.reshape(-1, self.n_agents - 1)
-            self.level_accuracy_metric += levels.sum(dim=1)
+            self.step_accuracy_metric += predicted.argmax(dim=2) == target.argmax(dim=2)
         elif self.message_type == MessageType.Numerical:
-            self.distance_metric += torch.sqrt(torch.sum((predicted - target) ** 2, dim=1))
+            self.step_distance_metric += torch.sqrt(torch.sum((predicted - target) ** 2, dim=2))
 
         self.__init_messages()
 

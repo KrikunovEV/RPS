@@ -1,4 +1,4 @@
-from AgentOrchestrator import AgentOrchestrator
+from AgentOrchestrator import AgentOrchestrator, MessageType
 
 
 train_negotiations = 1000
@@ -8,7 +8,7 @@ n_agents = 3
 message_space = 20
 lr = 0.001
 
-agent_orchestrator = AgentOrchestrator(lr, message_space, steps, categorical_agents=0, numerical_agents=3)
+agent_orchestrator = AgentOrchestrator(lr, message_space, steps, n_agents, MessageType.Numerical)
 
 
 # Training
