@@ -17,7 +17,7 @@ def make_one_hot(message):
 class NegotiationAgent:
 
     def __init__(self, label: str, message_type: MessageType, lr: float, message_space: int, n_agents: int, steps: int):
-        self.agent_label = label + (' categorical' if message_type == MessageType.Categorical else ' numerical')
+        self.agent_label = label
         self.message_type = message_type
         self.message_space = message_space
         self.n_agents = n_agents
@@ -121,7 +121,7 @@ class NegotiationAgent:
 
         if self.message_type == MessageType.Categorical:
             target = target.reshape(-1, self.message_space)
-            predicted = predicted.reshape(-1, self.message_space)
+            predicted = predicted.reshape(-1, self.message_space).detach()
             levels = torch.tensor(predicted.argmax(dim=1) == target.argmax(dim=1), dtype=torch.float)
             levels = levels.reshape(-1, self.n_agents - 1)
             self.level_accuracy_metric += levels.sum(dim=1)
@@ -129,6 +129,9 @@ class NegotiationAgent:
             self.distance_metric += torch.sqrt(torch.sum((predicted - target) ** 2, dim=1))
 
         self.__init_messages()
+
+    def get_label(self):
+        return self.agent_label
 
     def __init_messages(self):
         self.generated_messages = [torch.zeros(self.message_space)]

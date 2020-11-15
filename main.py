@@ -8,7 +8,7 @@ n_agents = 3
 message_space = 20
 lr = 0.001
 
-agent_orchestrator = AgentOrchestrator(lr, message_space, n_agents, steps)
+agent_orchestrator = AgentOrchestrator(lr, message_space, steps, categorical_agents=0, numerical_agents=3)
 
 
 # Training
@@ -36,4 +36,4 @@ for negotiation in range(test_negotiations):
 
 
 # Metrics
-agent_orchestrator.plot_metrics(test_negotiations)
+agent_orchestrator.plot_metrics(test_negotiations, directory='test')
