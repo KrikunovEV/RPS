@@ -38,9 +38,10 @@ class RPSEnvironment:
         for p in range(len(choices)):
             self.__print(f'Player {p}: {choices[p].name}' + ('(winner)' if rewards[p] != 0 else ''))
 
-        self.obs[choice1] = 1
-        self.obs[3 + choice2] = 1
-        self.obs[6 + choice3] = 1
+        self.obs = np.zeros(self.obs_space)
+        for i, choice in enumerate(choices):
+            self.obs[int(choice) + i * self.action_space] = 1
+
         return self.obs, rewards
 
     def get_obs_space(self):
@@ -49,6 +50,12 @@ class RPSEnvironment:
     def get_action_space(self):
         return self.action_space
 
-    def __print(self, str):
+    def __print(self, text):
         if self.debug:
-            print(str)
+            print(text)
+
+
+env = RPSEnvironment(5, True)
+
+choices = [Choice.SCISSORS, Choice.PAPER, Choice.PAPER, Choice.PAPER, Choice.PAPER]
+print(env.step(choices))
