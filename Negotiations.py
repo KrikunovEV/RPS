@@ -1,17 +1,14 @@
 import matplotlib.pyplot as plt
-import numpy as np
 from Agent import NegotiationAgent, MessageType
 
 
-class AgentOrchestrator:
+class NegotiationOrchestrator:
 
     def __init__(self, lr: float, message_space: int, steps: int, n_agents: int, message_type: MessageType):
         self.n_agents = n_agents
         self.message_type = message_type
         self.Agents = [NegotiationAgent(f'{a} {message_type.name}', message_type, lr, message_space, n_agents, steps)
                        for a in range(n_agents)]
-
-        #np.random.shuffle(self.Agents)
 
     def get_last_messages(self):
         return [agent.get_last_message() for agent in self.Agents]
