@@ -62,6 +62,10 @@ class RPSEnvironment:
 
         return self.obs, rewards
 
+    def reset(self):
+        self.obs = np.zeros(self.obs_space)
+        return self.obs
+
     def get_obs_space(self):
         return self.obs_space
 
