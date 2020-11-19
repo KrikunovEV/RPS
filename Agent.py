@@ -71,7 +71,7 @@ class Agent:
 
         return self.get_last_message()
 
-    def negotiate_train(self):
+    def negotiation_train(self):
         """
         Имеем (generated_messages : received_messages):
         A_0 : B_0
