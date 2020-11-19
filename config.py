@@ -9,6 +9,7 @@ cfg.lr = 0.001
 cfg.train_episodes = 1000
 cfg.test_episodes = 200
 cfg.gamma = 0.99
+cfg.rounds = 2
 
 cfg.negot = EasyDict()
 cfg.negot.teams = [2]  # list of number of agents who negotiate within a team
