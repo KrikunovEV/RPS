@@ -42,13 +42,19 @@ class AADEnvironment:
             attacked = choices[p][0]
             if choices[attacked][1] != p:
                 rewards[attacked] = 0.
+                self.__print(f'{p} defeated {attacked}')
+            else:
+                self.__print(f'{p} did not defeat {attacked}')
 
         obs = np.zeros(self.obs_space)
         for p in range(self.players):
             obs[p * 2 * self.players + choices[p][0]] = 1.
             obs[p * 2 * self.players + self.players + choices[p][1]] = 1.
 
-        rewards = rewards / rewards.sum()
+        total_reward = rewards.sum()
+        if total_reward != 0:
+            rewards = rewards / total_reward
+        self.__print(rewards)
 
         return obs, rewards
 
@@ -61,3 +67,191 @@ class AADEnvironment:
     def __print(self, text):
         if self.debug:
             print(text)
+
+
+if __name__ == '__main__':
+    env = AADEnvironment(3, True)
+    reward = []
+
+    choices = [
+        [1, 1],
+        [0, 0],
+        [0, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [1, 1],
+        [2, 0],
+        [0, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [1, 1],
+        [0, 2],
+        [0, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [1, 1],
+        [0, 0],
+        [1, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+            [1, 1],
+            [0, 0],
+            [0, 1]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [1, 1],
+        [2, 2],
+        [0, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [1, 1],
+        [0, 0],
+        [1, 1]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [1, 1],
+        [2, 0],
+        [1, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [1, 1],
+        [0, 2],
+        [0, 1]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [1, 1],
+        [2, 0],
+        [0, 1]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [1, 1],
+        [0, 2],
+        [1, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    ''' ********** '''
+
+    choices = [
+        [2, 1],
+        [0, 0],
+        [0, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [2, 0],
+        [0, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [0, 2],
+        [0, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [0, 0],
+        [1, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [0, 0],
+        [0, 1]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [2, 2],
+        [0, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [0, 0],
+        [1, 1]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [2, 0],
+        [1, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [0, 2],
+        [0, 1]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [2, 0],
+        [0, 1]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    choices = [
+        [2, 1],
+        [0, 2],
+        [1, 0]
+    ]
+    obs, rewards = env.play(choices)
+    reward.append(rewards[0])
+
+    reward = reward + reward
+    reward = np.array(reward)
+    print(reward[reward != 0.].sum() / len(reward))
+    print(reward)
