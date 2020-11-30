@@ -112,6 +112,10 @@ class Agent:
 
             self.negot_loss = self.negot_loss_fn(predicted, target)
 
+            self.optimizer2.zero_grad()
+            self.negot_loss.backward()
+            self.optimizer2.step()
+
             self.negot_loss_metric.append(self.negot_loss.item())
             if self.cfg.negot.message_type == MessageType.Categorical:
                 accuracy = torch.mean(predicted.argmax(dim=1) == target, dtype=torch.float)
@@ -150,7 +154,8 @@ class Agent:
         """
         Применяем REINFORCE функцию и обновляем веса для переговоров и среды
         """
-        rl_loss = (self.prob[1] * self.reward[1] + self.cfg.gamma * self.prob[0] * self.reward[0]) * (-1)
+        #rl_loss = (self.prob[1] * self.reward[1] + self.cfg.gamma * self.prob[0] * self.reward[0]) * (-1)
+        rl_loss = (self.prob[0] * self.reward[0]) * (-1)
         loss = rl_loss + self.negot_loss
 
         self.optimizer1.zero_grad()
