@@ -1,35 +1,39 @@
-import torch
+import torch.nn as nn
 
 
-class PredictionModel(torch.nn.Module):
+class PredictionModel(nn.Module):
 
-    def __init__(self, n_agents: int, message_space: int):
+    def __init__(self, in_space: int, out_space: int):
         super(PredictionModel, self).__init__()
-        self.linear = torch.nn.Linear(n_agents * message_space, (n_agents - 1) * message_space)
+        self.linear = nn.Linear(in_space, out_space)
 
     def forward(self, obs):
         return self.linear(obs)
 
 
-class GenerationModel(torch.nn.Module):
+class GenerationModel(nn.Module):
 
-    def __init__(self, n_agents: int, message_space: int):
+    def __init__(self, in_space: int, out_space: int, steps):
         super(GenerationModel, self).__init__()
-        self.linear = torch.nn.Linear(n_agents * message_space, message_space)
+        self.generators = nn.ModuleList([nn.Linear(in_space, out_space) for _ in range(steps)])
 
-    def forward(self, obs):
-        return self.linear(obs)
+    def forward(self, obs, step):
+        return self.generators[step](obs)
 
 
-class DecisionModel(torch.nn.Module):
+class DecisionModel(nn.Module):
 
-    def __init__(self, obs_space: int, action_space: int):
+    def __init__(self, in_space: int, out_space: int):
         super(DecisionModel, self).__init__()
-        self.mlp = torch.nn.Sequential(
-            #torch.nn.Linear(obs_space, obs_space),
-            #torch.nn.Sigmoid(),
-            torch.nn.Linear(obs_space, action_space)
+        self.linear = nn.Sequential(
+            nn.Linear(in_space, in_space),
+            #nn.ReLU(),
         )
+        self.attack_policy = nn.Linear(in_space, out_space)
+        self.defend_policy = nn.Linear(in_space, out_space)
 
     def forward(self, obs):
-        return self.mlp(obs)
+        obs = self.linear(obs)
+        attack_logits = self.attack_policy(obs)
+        defend_logits = self.defend_policy(obs)
+        return attack_logits, defend_logits

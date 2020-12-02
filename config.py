@@ -1,21 +1,19 @@
 from easydict import EasyDict
 from Agent import MessageType
-from functools import reduce
 
 
 cfg = EasyDict()
-cfg.n_agents = 1  # number of agents who won't negotiate
-cfg.lr = 0.0001
+cfg.n_agents = 2  # number of agents who won't negotiate
+cfg.lr = 0.01
 cfg.train_episodes = 1000
 cfg.test_episodes = 200
 cfg.gamma = 0.99
-cfg.rounds = 2
+cfg.rounds = 50
 
 cfg.negot = EasyDict()
-cfg.negot.teams = [2]  # list of number of agents who negotiate within a team
+cfg.negot.n_agents = 2  # number of agents who will negotiate
 cfg.negot.message_type = MessageType.Numerical
-cfg.negot.message_space = 10
-cfg.negot.lr = 0.00005
-cfg.negot.steps = 10
+cfg.negot.message_space = 16
+cfg.negot.steps = 3
 
-cfg.players = cfg.n_agents + reduce(lambda a, b: a+b, cfg.negot.teams)
+cfg.players = cfg.n_agents + cfg.negot.n_agents
