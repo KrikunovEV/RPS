@@ -51,7 +51,7 @@ class AADEnvironment:
             obs[p * 2 * self.players + choices[p][0]] = 1.
             obs[p * 2 * self.players + self.players + choices[p][1]] = 1.
 
-        total_reward = 1#rewards.sum()
+        total_reward = rewards.sum()
         if total_reward != 0:
             rewards = rewards / total_reward
         self.__print(rewards)
@@ -70,39 +70,4 @@ class AADEnvironment:
 
 
 if __name__ == '__main__':
-    env = AADEnvironment(3)
-
-    reward = []
-    for e in range(10000):
-        choices = [
-            [a0, a1],
-            [b0, b1],
-            [c0, c1]
-        ]
-        obs, rewards = env.play(choices)
-        reward.append(rewards[0])
-
-    '''
-    for a0 in [1, 2]:
-        for a1 in [1, 2]:
-            for b0 in [0, 2]:
-                for b1 in [0, 2]:
-                    for c0 in [0, 1]:
-                        for c1 in [0, 1]:
-                            choices = [
-                                [a0, a1],
-                                [b0, b1],
-                                [c0, c1]
-                            ]
-                            obs, rewards = env.play(choices)
-                            reward.append(rewards[0])
-
-    reward = np.array(reward)
-    uniques = np.unique(reward)
-    print(f'parties: {reward.shape[0]}\n')
-
-    for u in uniques:
-        print(f'reward: {np.around(u, 3)}, '
-              f'rate: {np.around(np.sum(reward == u) / reward.shape[0], 3)}, '
-              f'benefit: {np.around(u * np.sum(reward == u) / reward.shape[0], 4)}')
-    '''
+    pass
