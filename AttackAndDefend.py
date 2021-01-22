@@ -26,7 +26,7 @@ class AADEnvironment:
     def __init__(self, players: int, debug: bool = False):
         self.players = players
         self.debug = debug
-        self.obs_space = players * (players * 2)
+        self.obs_space = players * (2 * players)
         self.action_space = players
 
     def reset(self):
@@ -54,6 +54,7 @@ class AADEnvironment:
         total_reward = rewards.sum()
         if total_reward != 0:
             rewards = rewards / total_reward
+        rewards[rewards == 0] = -1.0
         self.__print(rewards)
 
         return obs, rewards
@@ -67,7 +68,3 @@ class AADEnvironment:
     def __print(self, text):
         if self.debug:
             print(text)
-
-
-if __name__ == '__main__':
-    pass

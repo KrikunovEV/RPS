@@ -12,6 +12,15 @@ class Orchestrator:
         self.messages = []
         self.Agents = [Agent(id, obs_space, action_space, cfg) for id in range(cfg.players)]
 
+    def shuffle(self):
+        inds = np.arange(len(self.Agents))
+        np.random.shuffle(inds)
+        temp_agents = []
+        for old_ind in inds:
+            self.Agents[old_ind].mask_id = len(temp_agents)
+            temp_agents.append(self.Agents[old_ind])
+        self.Agents = temp_agents
+
     def set_eval(self, eval: bool):
         for agent in self.Agents:
             agent.set_eval(eval)
@@ -20,6 +29,13 @@ class Orchestrator:
         messages = [torch.zeros(self.cfg.negot.message_space) for a in range(self.cfg.players)]
         for step in range(self.cfg.negot.steps):
             messages = [agent.negotiate(messages, obs) for agent in self.Agents]
+            '''
+            pe = 0.
+            for i in range(len(messages)):
+                for j in range(len(messages[i])):
+                    messages[i][j] += pe
+                    pe += self.cfg.pe_steps
+            '''
         self.messages = messages
 
     def decisions(self, obs):
@@ -76,7 +92,7 @@ class Orchestrator:
         fig, ax = plt.subplots(1, 2, figsize=(16, 9))
         ax[0].set_title('Attacks')
         ax[1].set_title('Defends')
-        ticklabels = ['agent ' + agent.agent_label for agent in self.Agents]
+        ticklabels = [agent.agent_label for agent in self.Agents]
         sn.heatmap(A_CM, annot=True, cmap='Reds',
                    xticklabels=ticklabels, yticklabels=ticklabels, ax=ax[0], square=True)
         sn.heatmap(D_CM, annot=True, cmap='Blues',
