@@ -7,7 +7,7 @@ class NegotiationModel(nn.Module):
         super(NegotiationModel, self).__init__()
         self.linear = nn.Sequential(
             nn.Linear(in_space, in_space),
-            nn.LeakyRпшеeLU(),
+            nn.LeakyReLU(),
             nn.Linear(in_space, out_space)
         )
 
