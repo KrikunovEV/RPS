@@ -8,7 +8,7 @@ cfg.train_episodes = 2000
 cfg.test_episodes = 200
 cfg.gamma = 0.9
 cfg.rounds = 2
-cfg.entropy_coef = 0.001
+cfg.entropy_coef = 0.1
 
 cfg.negot = EasyDict()
 cfg.negot.n_agents = 2  # number of agents who will negotiate

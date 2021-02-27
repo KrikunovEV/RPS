@@ -53,8 +53,9 @@ class Agent:
             messages = torch.zeros_like(messages)
         data = torch.cat((torch.Tensor(obs), messages))
         a_logits, d_logits = self.model(data)
-        #a_logits[self.mask_id] = float('-inf')
-        #d_logits[self.mask_id] = float('-inf')
+
+        a_logits[self.mask_id] = float('-inf')
+        d_logits[self.mask_id] = float('-inf')
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)
         a_action = np.random.choice(a_policy.shape[0], p=a_policy.detach().numpy())
@@ -62,6 +63,8 @@ class Agent:
 
         if not self.eval:
             self.logs.append(torch.log(a_policy[a_action] * d_policy[d_action]))
+            a_logits = a_policy[a_logits != float('-inf')]
+            d_logits = d_logits[d_logits != float('-inf')]
             a_entropy = (torch.softmax(a_logits, dim=-1) * torch.log_softmax(a_logits, dim=-1)).sum()
             d_entropy = (torch.softmax(d_logits, dim=-1) * torch.log_softmax(d_logits, dim=-1)).sum()
             self.entropy.append(a_entropy + d_entropy)
@@ -85,6 +88,9 @@ class Agent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        for g in self.optimizer.param_groups:
+            g['lr'] = g['lr'] * 1.
 
         self.loss_metric.append(loss.item())
 
