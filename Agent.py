@@ -20,6 +20,7 @@ class Agent:
         self.optimizer = optim.Adam(list(self.model.parameters()) + list(self.negot_model.parameters()), lr=cfg.lr)
 
         self.logs = []
+        self.value = []
         self.entropy = []
         self.reward = []
 
@@ -34,7 +35,7 @@ class Agent:
         message = torch.zeros(self.cfg.negot.message_space)
         if self.negotiable:
             obs = torch.cat((torch.Tensor(obs), torch.cat(messages)))
-            negotiate_logits = self.negot_model(obs)
+            negotiate_logits, negotiate_V = self.negot_model(obs)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
             negotiate_action = np.random.choice(negotiate_policy.shape[0], p=negotiate_policy.detach().numpy())
 
@@ -42,6 +43,7 @@ class Agent:
                 self.logs.append(torch.log(negotiate_policy[negotiate_action]))
                 self.entropy.append((negotiate_policy * torch.log_softmax(negotiate_logits, dim=-1)).sum())
                 self.reward.append(0)
+                self.value.append(negotiate_V)
 
             message[negotiate_action] = 1.
 
@@ -52,10 +54,10 @@ class Agent:
         if not self.negotiable:
             messages = torch.zeros_like(messages)
         data = torch.cat((torch.Tensor(obs), messages))
-        a_logits, d_logits = self.model(data)
+        a_logits, d_logits, V = self.model(data)
 
-        a_logits[self.mask_id] = float('-inf')
-        d_logits[self.mask_id] = float('-inf')
+        #a_logits[self.mask_id] = float('-inf')
+        #d_logits[self.mask_id] = float('-inf')
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)
         a_action = np.random.choice(a_policy.shape[0], p=a_policy.detach().numpy())
@@ -63,10 +65,11 @@ class Agent:
 
         if not self.eval:
             self.logs.append(torch.log(a_policy[a_action] * d_policy[d_action]))
-            a_logits = a_policy[a_logits != float('-inf')]
-            d_logits = d_logits[d_logits != float('-inf')]
-            a_entropy = (torch.softmax(a_logits, dim=-1) * torch.log_softmax(a_logits, dim=-1)).sum()
-            d_entropy = (torch.softmax(d_logits, dim=-1) * torch.log_softmax(d_logits, dim=-1)).sum()
+            self.value.append(V)
+            #a_logits = a_policy[a_logits != float('-inf')]
+            #d_logits = d_logits[d_logits != float('-inf')]
+            a_entropy = (a_policy * torch.log_softmax(a_logits, dim=-1)).sum()
+            d_entropy = (d_policy * torch.log_softmax(d_logits, dim=-1)).sum()
             self.entropy.append(a_entropy + d_entropy)
 
         return [a_action, d_action]
@@ -80,23 +83,28 @@ class Agent:
 
     def train(self):
         G = 0
-        loss = 0
+        policy_loss, value_loss = 0, 0
         for i in reversed(range(len(self.reward))):
             G = self.reward[i] + self.cfg.gamma * G
-            loss = loss - G * self.logs[i] - self.cfg.entropy_coef * self.entropy[i]
+            advantage = G - self.value[i]
 
+            value_loss = value_loss + 0.5 * advantage.pow(2)
+            policy_loss = policy_loss - (advantage.detach() * self.logs[i] + self.cfg.entropy_coef * self.entropy[i])
+
+        loss = 0.5 * value_loss + policy_loss
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        for g in self.optimizer.param_groups:
-            g['lr'] = g['lr'] * 1.
+        #for g in self.optimizer.param_groups:
+        #    g['lr'] = g['lr'] * 1.
 
         self.loss_metric.append(loss.item())
 
         self.reward = []
         self.logs = []
         self.entropy = []
+        self.value = []
 
     def get_label(self):
         return self.agent_label

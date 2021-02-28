@@ -6,13 +6,15 @@ class NegotiationModel(nn.Module):
     def __init__(self, in_space: int, out_space: int):
         super(NegotiationModel, self).__init__()
         self.linear = nn.Sequential(
-            nn.Linear(in_space, in_space),
-            nn.LeakyReLU(),
-            nn.Linear(in_space, out_space)
+            nn.Linear(in_space, in_space // 2),
+            nn.LeakyReLU()
         )
+        self.policy = nn.Linear(in_space // 2, out_space)
+        self.V = nn.Linear(in_space // 2, 1)
 
     def forward(self, obs):
-        return self.linear(obs)
+        obs = self.linear(obs)
+        return self.policy(obs), self.V(obs)
 
 
 class DecisionModel(nn.Module):
@@ -20,12 +22,14 @@ class DecisionModel(nn.Module):
     def __init__(self, in_space: int, out_space: int):
         super(DecisionModel, self).__init__()
         self.linear = nn.Sequential(
-            nn.Linear(in_space, in_space),
+            nn.Linear(in_space, in_space // 2),
             nn.LeakyReLU()
         )
-        self.a_policy = nn.Linear(in_space, out_space)
-        self.d_policy = nn.Linear(in_space, out_space)
+        self.a_policy = nn.Linear(in_space // 2, out_space)
+        self.d_policy = nn.Linear(in_space // 2, out_space)
+
+        self.V = nn.Linear(in_space // 2, 1)
 
     def forward(self, obs):
-        data = self.linear(obs)
-        return self.a_policy(data), self.d_policy(data)
+        obs = self.linear(obs)
+        return self.a_policy(obs), self.d_policy(obs), self.V(obs)

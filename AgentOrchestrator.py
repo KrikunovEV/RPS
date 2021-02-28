@@ -47,8 +47,6 @@ class Orchestrator:
             agent.train()
 
     def plot_metrics(self, A_CM, D_CM, directory: str = None, show: bool = False):
-        
-
         plt.title('REINFORCE loss')
         plt.xlabel('# of episode')
         plt.ylabel('loss value')
@@ -59,30 +57,20 @@ class Orchestrator:
         if directory is not None:
             plt.savefig(f'{directory}/loss.png')
 
-        fig, ax = plt.subplots(2, 2, figsize=(16, 9))
-        ax[0][0].set_title(f'Rewarding on train')
-        ax[0][0].set_xlabel('# of episode')
-        ax[0][0].set_ylabel('reward value')
-        ax[0][1].set_title(f'Rewarding on test')
-        ax[0][1].set_xlabel('# of episode')
-        ax[0][1].set_ylabel('reward value')
-        ax[1][0].set_title(f'Cumulative rewarding on train')
-        ax[1][0].set_xlabel('# of episode')
-        ax[1][0].set_ylabel('reward value')
-        ax[1][1].set_title(f'Cumulative rewarding on test')
-        ax[1][1].set_xlabel('# of episode')
-        ax[1][1].set_ylabel('reward value')
+        fig, ax = plt.subplots(1, 2, figsize=(16, 9))
+        ax[0].set_title(f'Cumulative rewarding on train')
+        ax[0].set_xlabel('# of episode')
+        ax[0].set_ylabel('reward value')
+        ax[1].set_title(f'Cumulative rewarding on test')
+        ax[1].set_xlabel('# of episode')
+        ax[1].set_ylabel('reward value')
         for agent in self.Agents:
             reward = np.array(agent.reward_metric).reshape(-1, self.cfg.rounds).sum(axis=1)
             eval_reward = np.array(agent.reward_eval_metric).reshape(-1, self.cfg.rounds).sum(axis=1)
-            ax[0][0].plot(reward, label=agent.get_label())
-            ax[0][1].plot(eval_reward, label=agent.get_label())
-            ax[1][0].plot(np.cumsum(reward), label=agent.get_label())
-            ax[1][1].plot(np.cumsum(eval_reward), label=agent.get_label())
-        ax[0][0].legend()
-        ax[0][1].legend()
-        ax[1][0].legend()
-        ax[1][1].legend()
+            ax[0].plot(np.cumsum(reward), label=agent.get_label())
+            ax[1].plot(np.cumsum(eval_reward), label=agent.get_label())
+        ax[0].legend()
+        ax[1].legend()
         fig.tight_layout()
         if directory is not None:
             plt.savefig(f'{directory}/rewarding.png')
