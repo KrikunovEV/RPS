@@ -12,7 +12,7 @@ orchestrator.set_eval(eval=False)
 obs = env.reset()
 for episode in range(cfg.train_episodes):
     print(f'Train episode: {episode + 1}/{cfg.train_episodes}')
-    orchestrator.shuffle()
+    #orchestrator.shuffle()
     for r in range(cfg.rounds):
         orchestrator.negotiation(obs)
         choices = orchestrator.decisions(obs)
@@ -25,7 +25,7 @@ A_CM, D_CM = np.zeros((cfg.players, cfg.players), dtype=np.int), np.zeros((cfg.p
 obs = env.reset()
 for episode in range(cfg.test_episodes):
     print(f'Test episode: {episode + 1}/{cfg.test_episodes}')
-    orchestrator.shuffle()
+    #orchestrator.shuffle()
     for r in range(cfg.rounds):
         orchestrator.negotiation(obs)
         choices = orchestrator.decisions(obs)
