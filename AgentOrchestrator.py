@@ -26,11 +26,11 @@ class Orchestrator:
         for step in range(self.cfg.negot.steps):
             messages = [agent.negotiate(messages, obs) for agent in self.Agents]
 
-            pe = 0.
-            for i in range(len(messages)):
-                for j in range(len(messages[i])):
-                    messages[i][j] += pe
-                    pe += self.cfg.pe_steps
+            #pe = 0.
+            #for i in range(len(messages)):
+            #    for j in range(len(messages[i])):
+            #        messages[i][j] += pe
+            #        pe += self.cfg.pe_steps
 
         self.messages = messages
 
@@ -79,12 +79,13 @@ class Orchestrator:
         ax[0].set_title('Attacks')
         ax[1].set_title('Defends')
         ticklabels = ['' for _ in range(len(self.Agents))]
+        ticklabels_x = ['Rock', 'Paper', 'Scissors']
         for agent in self.Agents:
             ticklabels[agent.id] = agent.agent_label
         sn.heatmap(A_CM, annot=True, cmap='Reds',
-                   xticklabels=ticklabels, yticklabels=ticklabels, ax=ax[0], square=True)
+                   xticklabels=ticklabels_x, yticklabels=ticklabels, ax=ax[0], square=True)
         sn.heatmap(D_CM, annot=True, cmap='Blues',
-                   xticklabels=ticklabels, yticklabels=ticklabels, ax=ax[1], square=True)
+                   xticklabels=ticklabels_x, yticklabels=ticklabels, ax=ax[1], square=True)
         if directory is not None:
             plt.savefig(f'{directory}/CM_metrics.png')
 

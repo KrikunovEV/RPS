@@ -4,7 +4,7 @@ from easydict import EasyDict
 cfg = EasyDict()
 cfg.n_agents = 1  # number of agents who won't negotiate
 cfg.lr = 0.005
-cfg.train_episodes = 2000
+cfg.train_episodes = 1000
 cfg.test_episodes = 500
 cfg.gamma = 0.9
 cfg.rounds = 2

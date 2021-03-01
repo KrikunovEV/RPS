@@ -50,8 +50,8 @@ class RPSEnvironment:
                 winners = np.where(np.array(choices) == option1)[0]
                 rewards[winners] = 1. / winners.shape[0]
 
-        for p in range(len(choices)):
-            self.__print(f'Player {p}: {choices[p].name}' + ('(winner)' if rewards[p] != 0 else ''))
+        #for p in range(len(choices)):
+            #self.__print(f'Player {p}: {choices[p].name}' + ('(winner)' if rewards[p] != 0 else ''))
 
         '''
         Состоянием среды является выбранные действия, закодированные в one-hot вектора 

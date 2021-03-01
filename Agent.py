@@ -54,25 +54,22 @@ class Agent:
         if not self.negotiable:
             messages = torch.zeros_like(messages)
         data = torch.cat((torch.Tensor(obs), messages))
-        a_logits, d_logits, V = self.model(data)
+        logits, V = self.model(data)
 
         #a_logits[self.mask_id] = float('-inf')
         #d_logits[self.mask_id] = float('-inf')
-        a_policy = functional.softmax(a_logits, dim=-1)
-        d_policy = functional.softmax(d_logits, dim=-1)
-        a_action = np.random.choice(a_policy.shape[0], p=a_policy.detach().numpy())
-        d_action = np.random.choice(d_policy.shape[0], p=d_policy.detach().numpy())
+        policy = functional.softmax(logits, dim=-1)
+        action = np.random.choice(policy.shape[0], p=policy.detach().numpy())
 
         if not self.eval:
-            self.logs.append(torch.log(a_policy[a_action] * d_policy[d_action]))
+            self.logs.append(torch.log(policy[action]))
             self.value.append(V)
             #a_logits = a_policy[a_logits != float('-inf')]
             #d_logits = d_logits[d_logits != float('-inf')]
-            a_entropy = (a_policy * torch.log_softmax(a_logits, dim=-1)).sum()
-            d_entropy = (d_policy * torch.log_softmax(d_logits, dim=-1)).sum()
-            self.entropy.append(a_entropy + d_entropy)
+            entropy = (policy * torch.log_softmax(logits, dim=-1)).sum()
+            self.entropy.append(entropy)
 
-        return [a_action, d_action]
+        return action
 
     def rewarding(self, reward):
         if self.eval:

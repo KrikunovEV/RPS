@@ -25,11 +25,9 @@ class DecisionModel(nn.Module):
             nn.Linear(in_space, in_space // 2),
             nn.LeakyReLU()
         )
-        self.a_policy = nn.Linear(in_space // 2, out_space)
-        self.d_policy = nn.Linear(in_space // 2, out_space)
-
+        self.policy = nn.Linear(in_space // 2, out_space)
         self.V = nn.Linear(in_space // 2, 1)
 
     def forward(self, obs):
         obs = self.linear(obs)
-        return self.a_policy(obs), self.d_policy(obs), self.V(obs)
+        return self.policy(obs), self.V(obs)
