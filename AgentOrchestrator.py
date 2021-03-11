@@ -90,14 +90,15 @@ class Orchestrator:
         ax[0].set_title('Attacks')
         ax[1].set_title('Defends')
         labels = [agent.agent_label for agent in self.Agents]
-        sn.heatmap(self.AM, annot=True, cmap='Reds', xticklabels=labels, yticklabels=labels, ax=ax[0], square=True)
-        sn.heatmap(self.DM, annot=True, cmap='Blues', xticklabels=labels, yticklabels=labels, ax=ax[1], square=True)
+        sn.heatmap(self.AM, annot=True, cmap='Reds', xticklabels=labels, yticklabels=labels, ax=ax[0], square=True,
+                   cbar=False, fmt='g')
+        sn.heatmap(self.DM, annot=True, cmap='Blues', xticklabels=labels, yticklabels=labels, ax=ax[1],  square=True,
+                   cbar=False, fmt='g')
+        for (a, d) in zip(ax[0].yaxis.get_ticklabels(), ax[1].yaxis.get_ticklabels()):
+            a.set_verticalalignment('center')
+            d.set_verticalalignment('center')
         if directory is not None:
             plt.savefig(f'{directory}/action_matrix.png')
-
-        # for centering:
-        # pos, textvals = plt.yticks()  # need to find for ax
-        # ax.set_yticks(pos, rotation=0, fontsize="10", va="center")
 
         if directory is None:
             plt.show()
