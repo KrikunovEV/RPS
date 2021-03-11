@@ -8,51 +8,70 @@ class Choice(IntEnum):
     SCISSORS = 2
 
 
-class Environment3p:
+class RPSEnvironment:
 
-    def __init__(self, debug: bool = False):
-        self.players = 3
+    def __init__(self, players: int, debug: bool = False):
+        self.players = players
         self.debug = debug
-        self.obs_space = self.players * len(Choice)
+        self.action_space = len(Choice)
+        self.obs_space = self.players * self.action_space
         self.obs = np.zeros(self.obs_space)
 
-    def action(self, choices):
-        choice1 = choices[0]
-        choice2 = choices[1]
-        choice3 = choices[2]
+    def play(self, choices: list):
+        unique_choices = np.unique(choices)
+        rewards = np.zeros(self.players)
+        '''
+        Победители существуют, если уникальных значений два.
+        Если уникальных значений одно, то все игроки выбрали одно действие.
+        Если уникальных значений три, то победитель не может быть определён.
+        '''
+        if len(unique_choices) == 2:
+            option1 = unique_choices[0]
+            option2 = unique_choices[1]
 
-        if choice1 == choice2 == choice3:
-            reward = np.zeros(self.players)
+            '''
+            Для определённости делаем так, что option1 содержит наименьшее значениe из класса Choice
+            Тогда разница между option2 и option1 может гарантированно быть либо 1, либо 2:
+            1: ROCK vs PAPER (winners)
+               PAPER vs SCISSOR (winners)
+               Победители те, кто выбрал option2
+            2: ROCK (winner) vs SCISSOR
+               Победители те, кто выбрал option1
+            
+            Вознаграждение делим между всеми победителями!
+            '''
+            if option1 > option2:
+                option1, option2 = option2, option1
 
-        elif choice1 == choice2:
-            diff = choice3 - choice1
-            reward = np.array([0., 0., 1.]) if diff == 1 or diff == -2 else np.array([1., 1., 0.])
+            if option2 - option1 == 1:
+                winners = np.where(np.array(choices) == option2)[0]
+                rewards[winners] = 1. / winners.shape[0]
+            else:
+                winners = np.where(np.array(choices) == option1)[0]
+                rewards[winners] = 1. / winners.shape[0]
 
-        elif choice2 == choice3:
-            diff = choice1 - choice3
-            reward = np.array([1., 0., 0.]) if diff == 1 or diff == -2 else np.array([0., 1., 1.])
+        #for p in range(len(choices)):
+            #self.__print(f'Player {p}: {choices[p].name}' + ('(winner)' if rewards[p] != 0 else ''))
 
-        elif choice1 == choice3:
-            diff = choice2 - choice3
-            reward = np.array([0., 1., 0.]) if diff == 1 or diff == -2 else np.array([1., 0., 1.])
+        '''
+        Состоянием среды является выбранные действия, закодированные в one-hot вектора 
+        '''
+        self.obs = np.zeros(self.obs_space)
+        for i, choice in enumerate(choices):
+            self.obs[int(choice) + i * self.action_space] = 1
 
-        else:
-            reward = np.zeros(self.players)
+        return self.obs, rewards
 
-        for p in range(self.players):
-            self.__print(f'Player {p}: {Choice(int(choices[p])).name}' + ('(winner)' if reward[p] != 0 else ''))
-
-        self.obs[choice1] = 1
-        self.obs[3 + choice2] = 1
-        self.obs[6 + choice3] = 1
-        return self.obs, reward
+    def reset(self):
+        self.obs = np.zeros(self.obs_space)
+        return self.obs
 
     def get_obs_space(self):
         return self.obs_space
 
     def get_action_space(self):
-        return len(Choice)
+        return self.action_space
 
-    def __print(self, str):
+    def __print(self, text):
         if self.debug:
-            print(str)
+            print(text)
