@@ -12,10 +12,11 @@ obs = env.reset()
 for episode in range(cfg.train_episodes):
     print(f'Train episode: {episode + 1}/{cfg.train_episodes}')
     #orchestrator.shuffle()
-    orchestrator.negotiation(obs)
-    choices = orchestrator.decisions(obs)
-    obs, rewards = env.play(choices)
-    orchestrator.rewarding(rewards)
+    for r in range(cfg.rounds):
+        orchestrator.negotiation(obs)
+        choices = orchestrator.decisions(obs)
+        obs, rewards = env.play(choices)
+        orchestrator.rewarding(rewards)
     orchestrator.train()
 
 orchestrator.set_eval(eval=True)
@@ -23,12 +24,15 @@ obs = env.reset()
 for episode in range(cfg.test_episodes):
     print(f'Test episode: {episode + 1}/{cfg.test_episodes}')
     #orchestrator.shuffle()
-    orchestrator.negotiation(obs)
-    choices = orchestrator.decisions(obs)
-    obs, rewards = env.play(choices)
-    orchestrator.rewarding(rewards)
-    for a, choice in enumerate(choices):
-        A_CM[orchestrator.Agents[a].id, choice] += 1
-        D_CM[orchestrator.Agents[a].id, choice] += 1
+    for r in range(cfg.rounds):
+        orchestrator.negotiation(obs)
+        choices = orchestrator.decisions(obs)
+        obs, rewards = env.play(choices)
+        orchestrator.rewarding(rewards)
+        for a, choice in enumerate(choices):
+            if r == 0:
+                A_CM[orchestrator.Agents[a].id, choice] += 1
+            else:
+                D_CM[orchestrator.Agents[a].id, choice] += 1
 
 orchestrator.plot_metrics(A_CM, D_CM, directory='test')
