@@ -10,5 +10,6 @@ metric_directory = 'test'
 
 negot_n_agents = 2  # number of agents who will negotiate
 negot_steps = 2
+is_channel_open = False
 
 players = n_agents + negot_n_agents

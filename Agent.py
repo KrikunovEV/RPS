@@ -6,17 +6,17 @@ from Model import DecisionModel, NegotiationModel
 
 
 class Agent:
-    def __init__(self, id: int, obs_space: int, action_space: int, cfg):
+    def __init__(self, id: int, obs_space: int, action_space: int, message_space: int, cfg):
         self.cfg = cfg
         self.id = id
-        self.mask_id = id
         self.negotiable = True if id >= cfg.n_agents else False
         self.agent_label = f'{id}' + (' negotiable' if self.negotiable else '')
         self.eval = False
 
-        obs_space = obs_space + cfg.players * cfg.negot.message_space
+        self.message_space = message_space
+        obs_space = obs_space + cfg.players * message_space
         self.model = DecisionModel(obs_space, action_space)
-        self.negot_model = NegotiationModel(obs_space, cfg.negot.message_space)
+        self.negot_model = NegotiationModel(obs_space, action_space)
         self.optimizer = optim.Adam(list(self.model.parameters()) + list(self.negot_model.parameters()), lr=cfg.lr)
 
         self.logs = []
@@ -31,11 +31,10 @@ class Agent:
     def set_eval(self, eval: bool):
         self.eval = eval
 
-    def negotiate(self, messages, obs):
-        message = torch.zeros(self.cfg.negot.message_space)
+    def negotiate(self, obs_negot):
+        message = torch.zeros(self.message_space)
         if self.negotiable:
-            obs = torch.cat((torch.Tensor(obs), torch.cat(messages)))
-            negotiate_logits, negotiate_V = self.negot_model(obs)
+            negotiate_logits, negotiate_V = self.negot_model(obs_negot)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
             negotiate_action = np.random.choice(negotiate_policy.shape[0], p=negotiate_policy.detach().numpy())
 
@@ -46,26 +45,24 @@ class Agent:
                 self.value.append(negotiate_V)
 
             message[negotiate_action] = 1.
+        else:
+            message[-1] = 1.
 
         return message
 
     def make_decision(self, obs, messages):
-        messages = torch.cat(messages)
-        if not self.negotiable:
+        if not self.cfg.is_channel_open:
             messages = torch.zeros_like(messages)
-        data = torch.cat((torch.Tensor(obs), messages))
+            messages[self.message_space - 1::self.message_space] = 1.  # empty messages
+        data = torch.cat((obs, messages))
         logits, V = self.model(data)
 
-        #a_logits[self.mask_id] = float('-inf')
-        #d_logits[self.mask_id] = float('-inf')
         policy = functional.softmax(logits, dim=-1)
         action = np.random.choice(policy.shape[0], p=policy.detach().numpy())
 
         if not self.eval:
             self.logs.append(torch.log(policy[action]))
             self.value.append(V)
-            #a_logits = a_policy[a_logits != float('-inf')]
-            #d_logits = d_logits[d_logits != float('-inf')]
             entropy = (policy * torch.log_softmax(logits, dim=-1)).sum()
             self.entropy.append(entropy)
 
