@@ -25,7 +25,7 @@ class AADEnvironment:
         for p in range(self.players):
             attacked = choices[p][0]
             if choices[attacked][1] != p:
-                rewards[attacked] = 0.
+                rewards[attacked] = -1.
                 self.__print(f'{p} defeated {attacked}')
             else:
                 self.__print(f'{p} did not defeat {attacked}')
@@ -35,7 +35,7 @@ class AADEnvironment:
             obs[p * 2 * (self.players + 1) + choices[p][0]] = 1.
             obs[p * 2 * (self.players + 1) + (self.players + 1) + choices[p][1]] = 1.
 
-        rewards[rewards == 0] = -1.0
+        rewards[rewards == 1.] = np.sum(rewards == 1.)
         self.__print(rewards)
 
         return obs, rewards
