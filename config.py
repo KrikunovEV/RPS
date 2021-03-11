@@ -6,6 +6,7 @@ test_episodes = 500
 lr = 0.005
 gamma = 0.9
 entropy_coef = 0.001
+metric_directory = 'test'
 
 negot_n_agents = 2  # number of agents who will negotiate
 negot_steps = 2
