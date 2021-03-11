@@ -11,6 +11,9 @@ class Orchestrator:
         self.cfg = cfg
         self.messages = []
         self.Agents = [Agent(id, obs_space, action_space, cfg) for id in range(cfg.players)]
+        self.eval = False
+        self.AM = np.zeros((cfg.players, cfg.players), dtype=np.int)
+        self.DM = np.zeros((cfg.players, cfg.players), dtype=np.int)
 
     def shuffle(self):
         np.random.shuffle(self.Agents)
@@ -18,6 +21,7 @@ class Orchestrator:
             self.Agents[i].mask_id = i
 
     def set_eval(self, eval: bool):
+        self.eval = eval
         for agent in self.Agents:
             agent.set_eval(eval)
 
@@ -25,13 +29,6 @@ class Orchestrator:
         messages = [torch.zeros(self.cfg.negot.message_space) for a in range(self.cfg.players)]
         for step in range(self.cfg.negot.steps):
             messages = [agent.negotiate(messages, obs) for agent in self.Agents]
-
-            #pe = 0.
-            #for i in range(len(messages)):
-            #    for j in range(len(messages[i])):
-            #        messages[i][j] += pe
-            #        pe += self.cfg.pe_steps
-
         self.messages = messages
 
     def decisions(self, obs):

@@ -26,7 +26,7 @@ class AADEnvironment:
     def __init__(self, players: int, debug: bool = False):
         self.players = players
         self.debug = debug
-        self.obs_space = players * (2 * players)
+        self.obs_space = players * (2 * (players + 1))  # +1 for empty
         self.action_space = players
 
     def reset(self):
