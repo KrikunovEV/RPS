@@ -7,11 +7,12 @@ from Agent import Agent
 
 class Orchestrator:
 
-    def __init__(self, obs_space: int, action_space: int, cfg):
+    def __init__(self, obs_space: int, action_space: int, attention: bool, cfg):
         self.cfg = cfg
         self.messages = []
         self.message_space = action_space + 1
-        self.Agents = [Agent(id, obs_space, action_space, self.message_space, cfg) for id in range(cfg.players)]
+        self.Agents = [Agent(id, obs_space, action_space, self.message_space, attention, cfg) for id in range(
+            cfg.players)]
         self.eval = False
         self.AM = np.zeros((cfg.players, cfg.players), dtype=np.int)
         self.DM = np.zeros((cfg.players, cfg.players), dtype=np.int)
@@ -49,6 +50,10 @@ class Orchestrator:
                 self.DM[a, choice[1]] += 1
         return choices
 
+    def reset_h(self):
+        for agent in self.Agents:
+            agent.reset_h()
+
     def rewarding(self, rewards):
         for agent, reward in zip(self.Agents, rewards):
             agent.rewarding(reward)
@@ -58,6 +63,7 @@ class Orchestrator:
             agent.train()
 
     def plot_metrics(self, directory: str = None):
+        plt.close('all')
         plt.title('A2C loss')
         plt.xlabel('# of episode')
         plt.ylabel('loss value')

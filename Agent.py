@@ -2,11 +2,11 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as functional
 import numpy as np
-from Model import DecisionModel, NegotiationModel
+from Model import DecisionModel, AttDecisionModel, NegotiationModel
 
 
 class Agent:
-    def __init__(self, id: int, obs_space: int, action_space: int, message_space: int, cfg):
+    def __init__(self, id: int, obs_space: int, action_space: int, message_space: int, attention: bool, cfg):
         self.cfg = cfg
         self.id = id
         self.negotiable = True if id >= cfg.n_agents else False
@@ -14,9 +14,14 @@ class Agent:
         self.eval = False
 
         self.message_space = message_space
-        obs_space = obs_space + cfg.players * message_space
-        self.model = DecisionModel(obs_space, action_space)
-        self.negot_model = NegotiationModel(obs_space, action_space)
+        self.attention = attention
+        self.h = torch.zeros((1, 2))
+        new_obs_space = obs_space + cfg.players * message_space
+        if attention:
+            self.model = AttDecisionModel(message_space, obs_space, cfg.players)
+        else:
+            self.model = DecisionModel(new_obs_space, action_space)
+        self.negot_model = NegotiationModel(new_obs_space, action_space)
         self.optimizer = optim.Adam(list(self.model.parameters()) + list(self.negot_model.parameters()), lr=cfg.lr)
 
         self.logs = []
@@ -51,25 +56,39 @@ class Agent:
         return message
 
     def make_decision(self, obs, messages):
-        if not self.cfg.is_channel_open:
+        if not self.negotiable and not self.cfg.is_channel_open:
             messages = torch.zeros_like(messages)
             messages[self.message_space - 1::self.message_space] = 1.  # empty messages
-        data = torch.cat((obs, messages))
-        a_logits, d_logits, V = self.model(data)
+
+        if self.attention:
+            a_logits, d_logits, V = self.model(obs, messages, self.h)
+        else:
+            a_logits, d_logits, V = self.model(torch.cat((obs, messages)))
 
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)
-        a_action = np.random.choice(a_policy.shape[0], p=a_policy.detach().numpy())
-        d_action = np.random.choice(d_policy.shape[0], p=d_policy.detach().numpy())
+        strategy = np.random.choice(['random', 'policy'], p=[self.cfg.epsilon, 1 - self.cfg.epsilon])
+        if not self.eval and strategy == 'random':
+            a_action = np.random.randint(a_policy.shape[0])
+            d_action = np.random.randint(d_policy.shape[0])
+        else:
+            a_action = np.random.choice(a_policy.shape[0], p=a_policy.detach().numpy())
+            d_action = np.random.choice(d_policy.shape[0], p=d_policy.detach().numpy())
 
         if not self.eval:
-            self.logs.append(torch.log(a_policy[a_action] * d_policy[a_action]))
+            if a_policy[a_action] < 0.0000001 and d_policy[d_action] < 0.0000001:
+                self.logs.append(torch.log(a_policy[a_action] * d_policy[d_action] + 0.0000001))
+            else:
+                self.logs.append(torch.log(a_policy[a_action] * d_policy[d_action]))
             self.value.append(V)
             a_entropy = (a_policy * torch.log_softmax(a_logits, dim=-1)).sum()
             d_entropy = (d_policy * torch.log_softmax(d_logits, dim=-1)).sum()
             self.entropy.append(a_entropy + d_entropy)
 
         return [a_action, d_action]
+
+    def reset_h(self):
+        self.h = torch.zeros((1, 2))
 
     def rewarding(self, reward):
         if self.eval:
