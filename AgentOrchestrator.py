@@ -7,20 +7,27 @@ from Agent import Agent
 
 class Orchestrator:
 
-    def __init__(self, obs_space: int, action_space: int, attention: bool, cfg):
+    def __init__(self, obs_space: int, action_space: int, model_type, cfg):
         self.cfg = cfg
         self.messages = []
         self.message_space = action_space + 1
-        self.Agents = [Agent(id, obs_space, action_space, self.message_space, attention, cfg) for id in range(
-            cfg.players)]
+        self.Agents = np.array([Agent(id,
+                                      obs_space,
+                                      action_space,
+                                      self.message_space,
+                                      model_type,
+                                      cfg) for id in range(cfg.players)])
+        self.ind = np.arange(cfg.players)
         self.eval = False
         self.AM = np.zeros((cfg.players, cfg.players), dtype=np.int)
         self.DM = np.zeros((cfg.players, cfg.players), dtype=np.int)
 
-    #def shuffle(self):
-    #    np.random.shuffle(self.Agents)
-    #    for i in range(len(self.Agents)):
-    #        self.Agents[i].mask_id = i
+    def shuffle(self):
+        np.random.shuffle(self.ind)
+
+    def reset_h(self):
+        for agent in self.Agents:
+            agent.reset_h()
 
     def set_eval(self, eval: bool):
         self.eval = eval
@@ -37,25 +44,21 @@ class Orchestrator:
 
         for step in range(self.cfg.negot_steps):
             obs_negot = torch.cat((obs, torch.cat(messages)))
-            messages = [agent.negotiate(obs_negot) for agent in self.Agents]
+            messages = [agent.negotiate(obs_negot, step) for agent in self.Agents[self.ind]]
         self.messages = messages
 
-    def decisions(self, obs):
+    def decisions(self, obs, epsilon):
         obs = torch.Tensor(obs)
         messages = torch.cat(self.messages)
-        choices = [agent.make_decision(obs, messages) for agent in self.Agents]
+        choices = [agent.make_decision(obs, messages, epsilon) for agent in self.Agents[self.ind]]
         if self.eval:
             for a, choice in enumerate(choices):
-                self.AM[a, choice[0]] += 1
-                self.DM[a, choice[1]] += 1
+                self.AM[self.ind[a], choice[0]] += 1
+                self.DM[self.ind[a], choice[1]] += 1
         return choices
 
-    def reset_h(self):
-        for agent in self.Agents:
-            agent.reset_h()
-
     def rewarding(self, rewards):
-        for agent, reward in zip(self.Agents, rewards):
+        for agent, reward in zip(self.Agents[self.ind], rewards):
             agent.rewarding(reward)
 
     def train(self):

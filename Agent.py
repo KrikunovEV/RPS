@@ -2,27 +2,33 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as functional
 import numpy as np
-from Model import DecisionModel, AttDecisionModel, NegotiationModel
+from Model import DecisionModel, AttDecisionModel, NegotiationModel, RNNDecisionModel
 
 
 class Agent:
-    def __init__(self, id: int, obs_space: int, action_space: int, message_space: int, attention: bool, cfg):
+    def __init__(self, id: int, obs_space: int, action_space: int, message_space: int, model_type, cfg):
         self.cfg = cfg
         self.id = id
         self.negotiable = True if id >= cfg.n_agents else False
         self.agent_label = f'{id}' + (' negotiable' if self.negotiable else '')
         self.eval = False
-
         self.message_space = message_space
-        self.attention = attention
-        self.h = torch.zeros((1, 2))
-        new_obs_space = obs_space + cfg.players * message_space
-        if attention:
-            self.model = AttDecisionModel(message_space, obs_space, cfg.players)
-        else:
-            self.model = DecisionModel(new_obs_space, action_space)
-        self.negot_model = NegotiationModel(new_obs_space, action_space)
-        self.optimizer = optim.Adam(list(self.model.parameters()) + list(self.negot_model.parameters()), lr=cfg.lr)
+        self.model_type = model_type
+
+        union_obs_space = obs_space + cfg.players * message_space
+        if model_type == cfg.ModelType.attention:
+            self.model = AttDecisionModel(message_space, obs_space, cfg.players, cfg.hidden_size)
+        elif model_type == cfg.ModelType.baseline:
+            self.model = DecisionModel(union_obs_space, action_space)
+        elif model_type == cfg.ModelType.rnn:
+            self.model = RNNDecisionModel(union_obs_space, action_space, cfg.hidden_size)
+        self.h = torch.zeros((1, cfg.hidden_size))
+        self.negot_model = []
+        list_params = list(self.model.parameters())
+        for step in range(cfg.negot_steps):
+            self.negot_model.append(NegotiationModel(union_obs_space, action_space))
+            list_params = list_params + list(self.negot_model[-1].parameters())
+        self.optimizer = optim.Adam(list_params, lr=cfg.lr)
 
         self.logs = []
         self.value = []
@@ -36,10 +42,13 @@ class Agent:
     def set_eval(self, eval: bool):
         self.eval = eval
 
-    def negotiate(self, obs_negot):
+    def reset_h(self):
+        self.h = torch.zeros((1, self.cfg.hidden_size))
+
+    def negotiate(self, obs_negot, step):
         message = torch.zeros(self.message_space)
         if self.negotiable:
-            negotiate_logits, negotiate_V = self.negot_model(obs_negot)
+            negotiate_logits, negotiate_V = self.negot_model[step](obs_negot)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
             negotiate_action = np.random.choice(negotiate_policy.shape[0], p=negotiate_policy.detach().numpy())
 
@@ -55,19 +64,22 @@ class Agent:
 
         return message
 
-    def make_decision(self, obs, messages):
+    def make_decision(self, obs, messages, epsilon):
         if not self.negotiable and not self.cfg.is_channel_open:
             messages = torch.zeros_like(messages)
             messages[self.message_space - 1::self.message_space] = 1.  # empty messages
 
-        if self.attention:
-            a_logits, d_logits, V = self.model(obs, messages, self.h)
-        else:
+        if self.model_type == self.cfg.ModelType.attention:
+            a_logits, d_logits, V = self.model(obs, messages)
+        elif self.model_type == self.cfg.ModelType.baseline:
             a_logits, d_logits, V = self.model(torch.cat((obs, messages)))
+        elif self.model_type == self.cfg.ModelType.rnn:
+            a_logits, d_logits, V, self.h = self.model(torch.cat((obs, messages)), self.h)
+            self.h = self.h.data
 
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)
-        strategy = np.random.choice(['random', 'policy'], p=[self.cfg.epsilon, 1 - self.cfg.epsilon])
+        strategy = np.random.choice(['random', 'policy'], p=[epsilon, 1 - epsilon])
         if not self.eval and strategy == 'random':
             a_action = np.random.randint(a_policy.shape[0])
             d_action = np.random.randint(d_policy.shape[0])
@@ -86,9 +98,6 @@ class Agent:
             self.entropy.append(a_entropy + d_entropy)
 
         return [a_action, d_action]
-
-    def reset_h(self):
-        self.h = torch.zeros((1, 2))
 
     def rewarding(self, reward):
         if self.eval:
