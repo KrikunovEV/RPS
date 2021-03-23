@@ -9,7 +9,7 @@ class ModelType(Enum):
 
 # mp
 cores = 8
-epochs = 20
+epochs = 50
 
 n_agents = 1  # number of agents who won't negotiate
 train_episodes = 2000
@@ -26,6 +26,6 @@ metric_directory = None  # 'test'
 
 negot_n_agents = 2  # number of agents who will negotiate
 negot_steps = 2
-is_channel_open = False
+is_channel_open = True
 
 players = n_agents + negot_n_agents
