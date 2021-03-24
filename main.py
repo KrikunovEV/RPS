@@ -1,11 +1,11 @@
 from AttackAndDefend import AADEnvironment
 from AgentOrchestrator import Orchestrator
 import config as cfg
-import os
 import time
+import os
 
 
-def main(model_type: cfg.ModelType):
+def main(id, model_type: cfg.ModelType, log: cfg.LogType):
     env = AADEnvironment(players=cfg.players)
     orchestrator = Orchestrator(obs_space=env.get_obs_space(), action_space=env.get_action_space(),
                                 model_type=model_type, cfg=cfg)
@@ -44,13 +44,18 @@ def main(model_type: cfg.ModelType):
         if rewards[2] > rewards[0] and rewards[1] > rewards[0]:
             result += 1
 
-    '''
-    directory_path = os.path.join('attention' if attention else 'base', f'{epoch}')
-    if not os.path.exists(directory_path):
-        os.mkdir(directory_path)
-    orchestrator.plot_metrics(directory=directory_path)  # cfg.metric_directory
-    '''
-    print(f'PID: {os.getpid()}, coops: {result}/{cfg.test_episodes}')
+    if log == cfg.LogType.show:
+        orchestrator.plot_metrics(directory=None)
+    elif log == cfg.LogType.local:
+        directory = os.path.join(cfg.metric_directory, model_type.name)
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        directory = os.path.join(directory, f'{id}')
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        orchestrator.plot_metrics(directory=directory)
+    elif log == cfg.LogType.mlflow:
+        pass
 
     return result
 
@@ -58,7 +63,7 @@ def main(model_type: cfg.ModelType):
 if __name__ == '__main__':
 
     start_time = time.time()
-    coop_result = main(cfg.ModelType.rnn)
+    coop_result = main('test', cfg.ModelType.attention, cfg.LogType.show)
 
     print(f'Time: {time.time() - start_time}')
     print(f'coop: {coop_result}/{cfg.test_episodes}')

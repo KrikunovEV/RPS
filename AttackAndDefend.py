@@ -35,9 +35,9 @@ class AADEnvironment:
             obs[p * 2 * (self.players + 1) + choices[p][0]] = 1.
             obs[p * 2 * (self.players + 1) + (self.players + 1) + choices[p][1]] = 1.
 
-        #winners = np.sum(rewards == 1.)
-        #if winners != 0:
-        #    rewards[rewards == 1.] = 1. / winners
+        winners = np.sum(rewards == 1.)
+        if winners != 0:
+            rewards[rewards == 1.] = 1. / winners
         self.__print(rewards)
 
         return obs, rewards

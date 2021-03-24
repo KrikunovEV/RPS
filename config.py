@@ -2,17 +2,24 @@ from enum import Enum
 
 
 class ModelType(Enum):
-    baseline = 0,
-    attention = 1,
+    baseline = 0
+    attention = 1
     rnn = 2
+
+
+class LogType(Enum):
+    no = 0
+    local = 1
+    mlflow = 2
+    show = 3
 
 
 # mp
 cores = 8
-epochs = 50
+epochs = 1000
 
 n_agents = 1  # number of agents who won't negotiate
-train_episodes = 2000
+train_episodes = 3000
 test_episodes = 50
 shuffle = True
 lr = 0.00075
@@ -22,10 +29,10 @@ entropy_coef = 0.1
 epsilon_upper = 0.5
 epsilon_lower = 0.001
 epsilon_step = (epsilon_upper - epsilon_lower) / train_episodes
-metric_directory = None  # 'test'
+metric_directory = 'metrics'
 
 negot_n_agents = 2  # number of agents who will negotiate
 negot_steps = 2
-is_channel_open = True
+is_channel_open = False
 
 players = n_agents + negot_n_agents
