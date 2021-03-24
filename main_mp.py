@@ -54,6 +54,7 @@ if __name__ == '__main__':
         task_q.put(Task(None, None, True))
 
     coops = dict(zip([model_type.name for model_type in cfg.ModelType], [0 for _ in cfg.ModelType]))
+    epoch_counter = dict(zip([model_type.name for model_type in cfg.ModelType], [0 for _ in cfg.ModelType]))
     processes_done = 0
     while processes_done != cfg.cores:
 
@@ -63,6 +64,12 @@ if __name__ == '__main__':
             continue
 
         coops[result.task.model_type.name] += result.coops
+        epoch_counter[result.task.model_type.name] += 1
+        if epoch_counter[result.task.model_type.name] % 10 == 0:
+            for model_type in cfg.ModelType:
+                name = model_type.name
+                print(f'{name}: {coops[name]}/{epoch_counter[name] * cfg.test_episodes} ('
+                      f'{coops[name] / (epoch_counter[name] * cfg.test_episodes)})')
 
     print(f'Time: {time.time() - start_time} seconds where {(time.time() - start_time) // 60} minutes')
     for model_type in cfg.ModelType:
