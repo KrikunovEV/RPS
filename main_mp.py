@@ -4,8 +4,8 @@ import multiprocessing as mp
 
 
 class Task:
-    def __init__(self, id: int, model_type: cfg.ModelType, done: bool):
-        self.id = id
+    def __init__(self, epoch: int, model_type: cfg.ModelType, done: bool):
+        self.epoch = epoch
         self.model_type = model_type
         self.done = done
 
@@ -27,13 +27,16 @@ def process_work(name: str, test_episodes: int, log: cfg.LogType, task_q: mp.Que
             result_q.put(Result(0, True, task))
             break
 
-        coops = main(task.id, task.model_type, log)
+        coops = main(task.epoch, task.model_type, log)
         result_q.put(Result(coops, False, task))
         tasks_done += 1
-        print(f'{name}: coops {coops}/{test_episodes}')
+        print(f'{name}: model {task.model_type.name}, epoch {task.epoch}, coops {coops}/{test_episodes}')
 
 
 if __name__ == '__main__':
+    if not cfg.Train:
+        print(f'The value of cfg.Train is {cfg.Train}. Is this expected?')
+
     manager = mp.Manager()
     task_q = manager.Queue()
     result_q = manager.Queue()
@@ -47,9 +50,9 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    for id in range(cfg.epochs):
+    for epoch in range(cfg.epochs):
         for model_type in cfg.ModelType:
-            task_q.put(Task(id, model_type, False))
+            task_q.put(Task(epoch, model_type, False))
     for core in range(cfg.cores):
         task_q.put(Task(None, None, True))
 

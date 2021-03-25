@@ -61,6 +61,8 @@ def main(id, model_type: cfg.ModelType, log: cfg.LogType):
 
 
 if __name__ == '__main__':
+    if not cfg.Train:
+        print(f'The value of cfg.Train is {cfg.Train}. Is this expected?')
 
     start_time = time.time()
     coop_result = main('test', cfg.ModelType.attention, cfg.LogType.show)

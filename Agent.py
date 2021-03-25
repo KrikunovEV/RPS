@@ -117,9 +117,11 @@ class Agent:
             policy_loss = policy_loss - (advantage.detach() * self.logs[i] + self.cfg.entropy_coef * self.entropy[i])
 
         loss = 0.5 * value_loss + policy_loss
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+
+        if self.cfg.Train:
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
 
         #for g in self.optimizer.param_groups:
         #    g['lr'] = g['lr'] * 1.
