@@ -2,9 +2,10 @@ from enum import Enum
 
 
 class ModelType(Enum):
-    baseline = 0
-    attention = 1
-    rnn = 2
+    baseline_mlp = 0
+    baseline_rnn = 1
+    attention = 2
+
 
 
 class LogType(Enum):
