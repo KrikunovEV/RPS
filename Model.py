@@ -53,23 +53,6 @@ class AttDecisionModel(nn.Module):
         return self.a_policy(attack_attention), self.d_policy(defend_attention), self.V(attack_attention + defend_attention)
 
 
-class DecisionModel(nn.Module):
-
-    def __init__(self, in_space: int, out_space: int):
-        super(DecisionModel, self).__init__()
-        self.linear = nn.Sequential(
-            nn.Linear(in_space, in_space // 2),
-            nn.LeakyReLU()
-        )
-        self.a_policy = nn.Linear(in_space // 2, out_space)
-        self.d_policy = nn.Linear(in_space // 2, out_space)
-        self.V = nn.Linear(in_space // 2, 1)
-
-    def forward(self, obs):
-        obs = self.linear(obs)
-        return self.a_policy(obs), self.d_policy(obs), self.V(obs)
-
-
 class RNNDecisionModel(nn.Module):
 
     def __init__(self, in_space: int, out_space: int, hidden_size: int):
@@ -82,3 +65,49 @@ class RNNDecisionModel(nn.Module):
     def forward(self, obs, h):
         new_h = self.rnn(obs.unsqueeze(0), h)
         return self.a_policy(new_h[0]), self.d_policy(new_h[0]), self.V(new_h[0]), new_h
+
+
+class BaselineMLPModel(nn.Module):
+
+    def __init__(self, obs_space: int, action_space: int, message_space: int, embedding_space: int, cfg):
+        super(BaselineMLPModel, self).__init__()
+        self.cfg = cfg
+
+        if cfg.use_negotiation:
+            obs_space += message_space
+
+        if cfg.use_embedding:
+            obs_space += embedding_space
+
+        self.linear = nn.Sequential(
+            nn.Linear(obs_space, obs_space // 2),
+            nn.LeakyReLU()
+        )
+        self.a_policy = nn.Linear(obs_space // 2, action_space)
+        self.d_policy = nn.Linear(obs_space // 2, action_space)
+        self.V = nn.Linear(obs_space // 2, 1)
+
+    def forward(self, obs, messages, embeddings):
+
+        if self.cfg.use_negotiation:
+            obs = torch.cat((obs, messages))
+
+        if self.cfg.use_embedding:
+            obs = torch.cat((obs, embeddings))
+
+        obs = self.linear(obs)
+        return self.a_policy(obs), self.d_policy(obs), self.V(obs)
+
+
+class DecisionModel(nn.Module):
+
+    def __init__(self, obs_space: int, action_space: int, message_space: int, embedding_space: int, hidden_size: int,
+                 cfg, model_type):
+        super(DecisionModel, self).__init__()
+        if model_type == cfg.ModelType.baseline_mlp:
+            self.model = BaselineMLPModel(obs_space, action_space, message_space, embedding_space, cfg)
+        else:
+            raise Exception(f'Model type {model_type.name} absent')
+
+    def forward(self, obs, messages, embeddings, h):
+        pass

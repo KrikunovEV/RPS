@@ -17,11 +17,12 @@ def main(id, model_type: cfg.ModelType, log: cfg.LogType):
         #print(f'Train episode: {episode + 1}/{cfg.train_episodes}')
         if episode != 0 and episode % cfg.test_episodes == 0:
             obs = env.reset()
-            if model_type == cfg.ModelType.rnn:
+            if model_type == cfg.ModelType.baseline_rnn:
                 orchestrator.reset_h()
         if cfg.shuffle:
             orchestrator.shuffle()
-        orchestrator.negotiation(obs)
+        if cfg.use_negotiation:
+            orchestrator.negotiation(obs)
         choices = orchestrator.decisions(obs, epsilon)
         obs, rewards = env.play(choices)
         orchestrator.rewarding(rewards)
@@ -36,7 +37,8 @@ def main(id, model_type: cfg.ModelType, log: cfg.LogType):
         # print(f'Test episode: {episode + 1}/{cfg.test_episodes}')
         if cfg.shuffle:
             orchestrator.shuffle()
-        orchestrator.negotiation(obs)
+        if cfg.use_negotiation:
+            orchestrator.negotiation(obs)
         choices = orchestrator.decisions(obs, epsilon)
         obs, rewards = env.play(choices)
         orchestrator.rewarding(rewards)
@@ -63,6 +65,9 @@ def main(id, model_type: cfg.ModelType, log: cfg.LogType):
 if __name__ == '__main__':
     if not cfg.Train:
         print(f'The value of cfg.Train is {cfg.Train}. Is this expected?')
+
+    print(f'Use negotiation: {cfg.use_negotiation}')
+    print(f'Use embeddings: {cfg.use_embeddings}')
 
     start_time = time.time()
     coop_result = main('test', cfg.ModelType.attention, cfg.LogType.show)

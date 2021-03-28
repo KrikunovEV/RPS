@@ -18,9 +18,9 @@ class Agent:
         union_obs_space = obs_space + cfg.players * message_space
         if model_type == cfg.ModelType.attention:
             self.model = AttDecisionModel(message_space, obs_space, cfg.players, cfg.hidden_size)
-        elif model_type == cfg.ModelType.baseline:
+        elif model_type == cfg.ModelType.baseline_mlp:
             self.model = DecisionModel(union_obs_space, action_space)
-        elif model_type == cfg.ModelType.rnn:
+        elif model_type == cfg.ModelType.baseline_rnn:
             self.model = RNNDecisionModel(union_obs_space, action_space, cfg.hidden_size)
         self.h = torch.zeros((1, cfg.hidden_size))
         self.negot_model = []
