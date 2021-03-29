@@ -15,7 +15,7 @@ class OADEnvironment:
         self.obs_space = 2 * (players + 1)
 
     def reset(self):
-        obs = np.zeros((self.players, self.obs_space))
+        obs = np.zeros((self.players, self.obs_space), dtype=np.float32)
         obs[:, (self.players, self.obs_space - 1)] = 1.
         return obs
 
@@ -35,7 +35,7 @@ class OADEnvironment:
             else:
                 self.__print(f'{offender} напал на {defender} (защитился)')
 
-        obs = np.zeros((self.players, self.obs_space))
+        obs = np.zeros((self.players, self.obs_space), dtype=np.float32)
         for p in range(self.players):
             obs[p][choices[p][self.OFFEND_ID]] = 1.
             obs[p][self.players + 1 + choices[p][self.DEFEND_ID]] = 1.

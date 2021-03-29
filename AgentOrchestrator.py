@@ -42,14 +42,14 @@ class Orchestrator:
             tmp[-1] = 1.
             messages.append(tmp)
 
-        obs = torch.cat(obs)
-        for step in range(self.cfg.negot_steps):
+        obs = torch.from_numpy(obs).reshape(-1)
+        for step in range(self.cfg.negotiation_steps):
             obs_negot = torch.cat((obs, torch.cat(messages)))
             messages = [agent.negotiate(obs_negot, step) for agent in self.Agents[self.ind]]
         self.messages = messages
 
     def decisions(self, obs, epsilon):
-        obs = torch.stack(obs)
+        obs = torch.from_numpy(obs)
         messages = torch.stack(self.messages)
         choices = np.array([agent.make_decision(obs, messages, epsilon) for agent in self.Agents[self.ind]])
         choices[self.ind] = choices[np.arange(self.cfg.players)]
