@@ -25,6 +25,7 @@ class OADEnvironment:
         Если он не смог защититься, то reward[agent_id] = -1
         """
 
+        self.__print('\nНовый раунд: ')
         rewards = np.ones(self.players)
         for offender in range(self.players):
             defender = choices[offender][self.OFFEND_ID]
@@ -43,7 +44,7 @@ class OADEnvironment:
         total_win_reward = np.sum(winners_mask)
         if total_win_reward != 0:
             rewards[winners_mask] = 1. / total_win_reward
-        self.__print(rewards)
+        self.__print(f'Награды {rewards}')
 
         return obs, rewards
 
