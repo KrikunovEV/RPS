@@ -9,7 +9,7 @@ class Orchestrator:
 
     def __init__(self, obs_space: int, action_space: int, model_type, cfg):
         self.cfg = cfg
-        self.messages = []
+        self.messages = None
         self.message_space = action_space + 1
         self.Agents = np.array([Agent(id,
                                       obs_space,
