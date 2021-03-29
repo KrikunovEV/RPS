@@ -22,8 +22,9 @@ class Orchestrator:
         self.AM = np.zeros((cfg.players, cfg.players), dtype=np.int)
         self.DM = np.zeros((cfg.players, cfg.players), dtype=np.int)
 
-    def shuffle(self):
+    def shuffle(self, obs):
         np.random.shuffle(self.ind)
+        return obs[self.ind]
 
     def reset_h(self):
         for agent in self.Agents:
@@ -40,25 +41,26 @@ class Orchestrator:
             tmp = torch.zeros(self.message_space)
             tmp[-1] = 1.
             messages.append(tmp)
-        obs = torch.Tensor(obs)
 
+        obs = torch.cat(obs)
         for step in range(self.cfg.negot_steps):
             obs_negot = torch.cat((obs, torch.cat(messages)))
             messages = [agent.negotiate(obs_negot, step) for agent in self.Agents[self.ind]]
         self.messages = messages
 
     def decisions(self, obs, epsilon):
-        obs = torch.Tensor(obs)
-        messages = torch.cat(self.messages)
-        choices = [agent.make_decision(obs, messages, epsilon) for agent in self.Agents[self.ind]]
+        obs = torch.stack(obs)
+        messages = torch.stack(self.messages)
+        choices = np.array([agent.make_decision(obs, messages, epsilon) for agent in self.Agents[self.ind]])
+        choices[self.ind] = choices[np.arange(self.cfg.players)]
         if self.eval:
             for a, choice in enumerate(choices):
-                self.AM[self.ind[a], choice[0]] += 1
-                self.DM[self.ind[a], choice[1]] += 1
-        return choices
+                self.AM[a, choice[0]] += 1
+                self.DM[a, choice[1]] += 1
+        return choices.tolist()
 
     def rewarding(self, rewards):
-        for agent, reward in zip(self.Agents[self.ind], rewards):
+        for agent, reward in zip(self.Agents, rewards):
             agent.rewarding(reward)
 
     def train(self):

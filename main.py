@@ -11,7 +11,7 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
         raise Exception(f'You can not use attention model if negotiation ({cfg.use_negotiation}) and embedding '
                         f'({cfg.use_embeddings}) are disabled both.')
 
-    env = OADEnvironment(players=cfg.players)
+    env = OADEnvironment(players=cfg.players, debug=debug)
     orchestrator = Orchestrator(obs_space=env.get_obs_space(),
                                 action_space=env.get_action_space(),
                                 model_type=model_type, cfg=cfg)
@@ -29,8 +29,7 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
                 orchestrator.reset_h()
 
         if cfg.shuffle:
-            raise Exception('FIX IT: obs should be shuffled correspondingly')
-            orchestrator.shuffle()
+            obs = orchestrator.shuffle(obs)
 
         if cfg.use_negotiation:
             orchestrator.negotiation(obs)
@@ -54,7 +53,7 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
                 orchestrator.reset_h()
 
         if cfg.shuffle:
-            orchestrator.shuffle()
+            obs = orchestrator.shuffle(obs)
 
         if cfg.use_negotiation:
             orchestrator.negotiation(obs)
@@ -63,13 +62,12 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
         obs, rewards = env.play(choices)
         orchestrator.rewarding(rewards)
 
-        raise Exception('FIX IT')
         if rewards[2] > rewards[0] and rewards[1] > rewards[0]:
             result += 1
 
-    if log == cfg.LogType.show:
+    if cfg.logging == cfg.LogType.show:
         orchestrator.plot_metrics(directory=None)
-    elif log == cfg.LogType.local:
+    elif cfg.logging == cfg.LogType.local:
         if not os.path.exists(cfg.metric_directory):
             os.mkdir(cfg.metric_directory)
         directory = os.path.join(cfg.metric_directory, model_type.name)
@@ -79,7 +77,7 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
         if not os.path.exists(directory):
             os.mkdir(directory)
         orchestrator.plot_metrics(directory=directory)
-    elif log == cfg.LogType.mlflow:
+    elif cfg.logging == cfg.LogType.mlflow:
         print(f'Log type mlflow not implemented. Logs are not saved.')
 
     return result

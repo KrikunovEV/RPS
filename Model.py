@@ -4,14 +4,15 @@ import torch
 
 class NegotiationModel(nn.Module):
 
-    def __init__(self, in_space: int, out_space: int):
+    def __init__(self, obs_space: int, message_space: int, action_space: int, cfg):
         super(NegotiationModel, self).__init__()
+        obs_space = obs_space * cfg.n_players + message_space * cfg.n_players
         self.linear = nn.Sequential(
-            nn.Linear(in_space, in_space // 2),
+            nn.Linear(obs_space, obs_space // 2),
             nn.LeakyReLU()
         )
-        self.policy = nn.Linear(in_space // 2, out_space)
-        self.V = nn.Linear(in_space // 2, 1)
+        self.policy = nn.Linear(obs_space // 2, action_space)
+        self.V = nn.Linear(obs_space // 2, 1)
 
     def forward(self, obs):
         obs = self.linear(obs)

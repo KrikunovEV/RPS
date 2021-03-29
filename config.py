@@ -39,8 +39,8 @@ epsilon_lower = 0.001
 epsilon_step = (epsilon_upper - epsilon_lower) / train_episodes
 
 # negotiation
-use_negotiation = False
-use_embeddings = True
+use_negotiation = True
+use_embeddings = False
 is_channel_open = False
 negotiable_agents = 2
 negotiation_steps = 2
