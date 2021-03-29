@@ -19,11 +19,12 @@ class LogType(Enum):
 # mp
 cores = 8
 epochs = 1000
+pickle_file = 'mp_statistic.pickle'
 
 # episodes
 train_episodes = 3000
 test_episodes = 100
-rnn_episodes = 25
+round_episodes = 20
 
 # learning
 Train = True  # use False only for Random (non-trainable) Agents!
@@ -48,7 +49,15 @@ negotiation_steps = 2
 agents = 1  # number of agens who won't negotiate
 players = agents + negotiable_agents
 shuffle = True
+logging = LogType.local
 metric_directory = 'metrics'
+
+
+def is_require_reset(model_type: ModelType):
+    require = False
+    if model_type == ModelType.baseline_rnn:
+        require = True
+    return require
 
 
 def print_config():
@@ -60,11 +69,12 @@ def print_config():
     print('\n' + fg.orange_dark + 'Multiprocessing:' + fg.rs)
     print(fg.orange + 'Cores: ' + fg.rs + f'{cores}')
     print(fg.orange + 'Epochs: ' + fg.rs + f'{epochs}')
+    print(fg.orange + 'Pickle file: ' + fg.rs + f'{pickle_file}')
 
     print('\n' + fg.orange_dark + 'Episodes:' + fg.rs)
     print(fg.orange + 'Train episodes: ' + fg.rs + f'{train_episodes}')
     print(fg.orange + 'Test episodes: ' + fg.rs + f'{test_episodes}')
-    print(fg.orange + 'Rnn episodes: ' + fg.rs + f'{rnn_episodes}')
+    print(fg.orange + 'Round episodes: ' + fg.rs + f'{round_episodes}')
 
     print('\n' + fg.orange_dark + 'Learning:' + fg.rs)
     print(fg.orange + 'Train: ' + fg.rs + f'{Train} ' + ('' if Train else (fg.red_war + 'Is this expected?!' + fg.rs)))
@@ -89,6 +99,7 @@ def print_config():
     print(fg.orange + 'Agents: ' + fg.rs + f'{agents}')
     print(fg.orange + 'Players: ' + fg.rs + f'{players}')
     print(fg.orange + 'Shuffle: ' + fg.rs + f'{shuffle}')
+    print(fg.orange + 'Logging: ' + fg.rs + f'{logging.name}')
     print(fg.orange + 'Metric directory: ' + fg.rs + f'{metric_directory}')
 
 
