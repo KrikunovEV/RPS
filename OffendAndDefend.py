@@ -1,20 +1,23 @@
 import numpy as np
 
 
-class AADEnvironment:
+class OADEnvironment:
     """
     Игроки должны выбрать кого атаковать и от кого защищаться.
     """
-    ATTACK_ID = 0
-    DEFEND_ID = 1
+    OFFEND_ID: int = 0
+    DEFEND_ID: int = 1
+    NEGATIVE_REWARD: float = -1.
 
     def __init__(self, players: int, debug: bool = False):
         self.players = players
         self.debug = debug
-        self.obs_space = players + 1
+        self.obs_space = 2 * (players + 1)
 
     def reset(self):
-        return np.zeros((self.players, self.obs_space))
+        obs = np.zeros((self.players, self.obs_space))
+        obs[:, (self.players, self.obs_space - 1)] = 1.
+        return obs
 
     def play(self, choices: list):
         """
@@ -23,28 +26,29 @@ class AADEnvironment:
         """
 
         rewards = np.ones(self.players)
-        for p in range(self.players):
-            attacked = choices[p][self.ATTACK_ID]
-            if choices[attacked][1] != p:
-                rewards[attacked] = -1.
-                self.__print(f'{p} defeated {attacked}')
+        for offender in range(self.players):
+            defender = choices[offender][self.OFFEND_ID]
+            if choices[defender][self.DEFEND_ID] != offender:
+                rewards[defender] = self.NEGATIVE_REWARD
+                self.__print(f'{offender} напал на {defender} (не защитился)')
             else:
-                self.__print(f'{p} did not defeat {attacked}')
+                self.__print(f'{offender} напал на {defender} (защитился)')
 
-        obs = np.zeros(self.obs_space)
+        obs = np.zeros((self.players, self.obs_space))
         for p in range(self.players):
-            obs[p * 2 * (self.players + 1) + choices[p][0]] = 1.
-            obs[p * 2 * (self.players + 1) + (self.players + 1) + choices[p][1]] = 1.
+            obs[p][choices[p][self.OFFEND_ID]] = 1.
+            obs[p][self.players + 1 + choices[p][self.DEFEND_ID]] = 1.
 
-        winners = np.sum(rewards == 1.)
-        if winners != 0:
-            rewards[rewards == 1.] = 1. / winners
+        winners_mask = rewards == 1.
+        total_win_reward = np.sum(winners_mask)
+        if total_win_reward != 0:
+            rewards[winners_mask] = 1. / total_win_reward
         self.__print(rewards)
 
         return obs, rewards
 
     def get_obs_space(self):
-        return self.players
+        return self.obs_space
 
     def get_action_space(self):
         return self.players
@@ -52,3 +56,10 @@ class AADEnvironment:
     def __print(self, text):
         if self.debug:
             print(text)
+
+
+if __name__ == '__main__':
+    env = OADEnvironment(players=3, debug=True)
+    print(env.reset())
+    print(env.play([[1, 2], [0, 0], [0, 0]]))
+    print(env.play([[0, 0], [1, 1], [2, 2]]))
