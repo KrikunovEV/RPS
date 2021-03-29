@@ -31,6 +31,7 @@ Train = True  # use False only for Random (non-trainable) Agents!
 lr = 0.00075
 hidden_size = 32
 gamma = 1.
+value_loss_penalize = 0.5
 
 # exploration
 entropy_coef = 0.1
@@ -41,6 +42,7 @@ epsilon_step = (epsilon_upper - epsilon_lower) / train_episodes
 # negotiation
 use_negotiation = True
 use_embeddings = False
+embedding_space = 32
 is_channel_open = False
 negotiable_agents = 2
 negotiation_steps = 2
@@ -81,6 +83,7 @@ def print_config():
     print(fg.orange + 'Learning rate: ' + fg.rs + f'{lr}')
     print(fg.orange + 'Hidden size: ' + fg.rs + f'{hidden_size}')
     print(fg.orange + 'Gamma: ' + fg.rs + f'{gamma}')
+    print(fg.orange + 'Value loss penalize: ' + fg.rs + f'{value_loss_penalize}')
 
     print('\n' + fg.orange_dark + 'Exploration:' + fg.rs)
     print(fg.orange + 'Entropy coef: ' + fg.rs + f'{entropy_coef}')
@@ -91,6 +94,7 @@ def print_config():
     print('\n' + fg.orange_dark + 'Negotiation:' + fg.rs)
     print(fg.orange + 'Use negotiation: ' + fg.rs + f'{use_negotiation}')
     print(fg.orange + 'Use embeddings: ' + fg.rs + f'{use_embeddings}')
+    print(fg.orange + 'Embedding space: ' + fg.rs + f'{embedding_space}')
     print(fg.orange + 'Is channel open: ' + fg.rs + f'{is_channel_open}')
     print(fg.orange + 'Negotiable agents: ' + fg.rs + f'{negotiable_agents}')
     print(fg.orange + 'Negotiation steps: ' + fg.rs + f'{negotiation_steps}')
