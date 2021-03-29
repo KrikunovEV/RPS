@@ -20,26 +20,32 @@ class LogType(Enum):
 cores = 8
 epochs = 1000
 
-# common
-n_agents = 1  # number of agents who won't negotiate
+# episodes
 train_episodes = 3000
-test_episodes = 50
-shuffle = True
-Train = True  # always True. False only for Random (non-trainable) Agent!
+test_episodes = 100
+rnn_episodes = 25
+
+# learning
+Train = True  # use False only for Random (non-trainable) Agents!
 lr = 0.00075
 hidden_size = 32
 gamma = 1.
+
+# exploration
 entropy_coef = 0.1
 epsilon_upper = 0.5
 epsilon_lower = 0.001
 epsilon_step = (epsilon_upper - epsilon_lower) / train_episodes
-metric_directory = 'metrics'
 
 # negotiation
 use_negotiation = False
 use_embeddings = True
-negot_n_agents = 2  # number of agents who will negotiate
-negot_steps = 2
 is_channel_open = False
+negotiable_agents = 2
+negotiation_steps = 2
 
-players = n_agents + negot_n_agents
+# common
+agents = 1  # number of agens who won't negotiate
+players = agents + negotiable_agents
+shuffle = True
+metric_directory = 'metrics'

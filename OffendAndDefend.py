@@ -5,25 +5,26 @@ class AADEnvironment:
     """
     Игроки должны выбрать кого атаковать и от кого защищаться.
     """
+    ATTACK_ID = 0
+    DEFEND_ID = 1
 
     def __init__(self, players: int, debug: bool = False):
         self.players = players
         self.debug = debug
-        self.obs_space = players * (2 * (players + 1))  # +1 for empty
-        self.action_space = players
+        self.obs_space = players + 1
 
     def reset(self):
-        return np.zeros(self.obs_space)
+        return np.zeros((self.players, self.obs_space))
 
     def play(self, choices: list):
         """
-        We just need to check that all players have defended.
-        If someone not, do reward[someone] = 0
+        Нам нужно лишь проверить, что на агента не было совершенно успешное нападение.
+        Если он не смог защититься, то reward[agent_id] = -1
         """
 
         rewards = np.ones(self.players)
         for p in range(self.players):
-            attacked = choices[p][0]
+            attacked = choices[p][self.ATTACK_ID]
             if choices[attacked][1] != p:
                 rewards[attacked] = -1.
                 self.__print(f'{p} defeated {attacked}')
@@ -43,10 +44,10 @@ class AADEnvironment:
         return obs, rewards
 
     def get_obs_space(self):
-        return self.obs_space
+        return self.players
 
     def get_action_space(self):
-        return self.action_space
+        return self.players
 
     def __print(self, text):
         if self.debug:
