@@ -20,6 +20,7 @@ class LogType(Enum):
 cores = 8
 epochs = 1000
 pickle_file = 'mp_statistic.pickle'
+mp_models = [ModelType.baseline_mlp, ModelType.baseline_rnn, ModelType.attention]
 
 # episodes
 train_episodes = 3000
