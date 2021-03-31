@@ -17,10 +17,10 @@ class LogType(Enum):
 
 
 # mp
-cores = 8
-epochs = 1000
+cores = 1
+epochs = 100
 pickle_file = 'mp_siam_statistic.pickle'
-mp_models = [ModelType.siam_mlp, ModelType.siam_rnn]
+mp_models = [ModelType.siam_mlp]
 
 # episodes
 train_episodes = 3000
@@ -45,12 +45,12 @@ use_negotiation = True
 message_space = 3
 use_embeddings = False
 embedding_space = 32
-is_channel_open = False
-negotiable_agents = 2
+is_channel_open = True
+negotiable_agents = 3
 negotiation_steps = 2
 
 # common
-agents = 1  # number of agens who won't negotiate
+agents = 0  # number of agens who won't negotiate
 players = agents + negotiable_agents
 shuffle = False
 logging = LogType.local

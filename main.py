@@ -45,7 +45,7 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
 
     orchestrator.set_eval(eval=True)
     obs = None
-    result = 0
+    result = {'1 & 2 vs 3': 0, '2 & 3 vs 1': 0, '1 & 3 vs 2': 0}
     for episode in range(cfg.test_episodes):
         if debug:
             print(f'Epoch: {epoch}, test episode: {episode + 1}/{cfg.test_episodes}')
@@ -66,7 +66,11 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
         orchestrator.rewarding(rewards)
 
         if choices[2][0] == 0 and choices[2][1] == 0 and choices[1][0] == 0 and choices[1][1] == 0:
-            result += 1
+            result['2 & 3 vs 1'] += 1
+        elif choices[2][0] == 1 and choices[2][1] == 1 and choices[0][0] == 1 and choices[0][1] == 1:
+            result['1 & 3 vs 2'] += 1
+        elif choices[0][0] == 2 and choices[0][1] == 2 and choices[1][0] == 2 and choices[1][1] == 2:
+            result['1 & 2 vs 3'] += 1
 
     if cfg.logging == cfg.LogType.show:
         orchestrator.plot_metrics(directory=None)
@@ -90,7 +94,9 @@ if __name__ == '__main__':
     cfg.print_config()
 
     start_time = time.time()
-    coop_result = run('test', cfg.ModelType.siam_rnn, debug=True)
+    coops = run('test', cfg.ModelType.siam_mlp, debug=True)
 
     print(f'Time: {time.time() - start_time}')
-    print(f'coop: {coop_result}/{cfg.test_episodes}')
+    print('Coops:')
+    for (key, value) in coops.items():
+        print(f'{key}: {value}/{cfg.test_episodes} ({value / cfg.test_episodes})')

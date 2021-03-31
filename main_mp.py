@@ -58,7 +58,8 @@ if __name__ == '__main__':
     for core in range(cfg.cores):
         task_q.put(Task(epoch=None, model_type=None, done=True))
 
-    coops = dict(zip([model_type.name for model_type in cfg.mp_models], [0 for _ in cfg.mp_models]))
+    coops = dict(zip([model_type.name for model_type in cfg.mp_models],
+                     [{'1 & 2 vs 3': 0, '2 & 3 vs 1': 0, '1 & 3 vs 2': 0} for _ in cfg.mp_models]))
     epoch_counter = dict(zip([model_type.name for model_type in cfg.mp_models], [0 for _ in cfg.mp_models]))
     processes_done = 0
     total_epochs = 0
@@ -69,14 +70,17 @@ if __name__ == '__main__':
             processes_done += 1
             continue
 
-        coops[result.task.model_type.name] += result.coops
+        for (key, value) in result.coops:
+            coops[result.task.model_type.name][key] += value
         epoch_counter[result.task.model_type.name] += 1
         total_epochs += 1
         if total_epochs % 10 == 0:
             for model_type in cfg.mp_models:
                 name = model_type.name
-                print(f'{name}: {coops[name]}/{epoch_counter[name] * cfg.test_episodes} ('
-                      f'{coops[name] / (epoch_counter[name] * cfg.test_episodes)})')
+                print(f'{name} coops:')
+                for (key, value) in coops[name]:
+                    print(f'{key}: {value}/{epoch_counter[name] * cfg.test_episodes} '
+                          f'({value / (epoch_counter[name] * cfg.test_episodes)})')
             if not os.path.exists(cfg.metric_directory):
                 os.mkdir(cfg.metric_directory)
             with open(os.path.join(cfg.metric_directory, cfg.pickle_file), 'wb') as f:
@@ -87,5 +91,7 @@ if __name__ == '__main__':
         name = model_type.name
         print(f'\nModel name: {name}')
         print(f'Epochs: {epoch_counter[name]} (should be {cfg.epochs})')
-        print(f'Coops: {coops[name]}/{epoch_counter[name] * cfg.test_episodes}')
-        print(f'Coops ratio: {coops[name] / (epoch_counter[name] * cfg.test_episodes)}')
+        print('Coops:')
+        for (key, value) in coops[name]:
+            print(f'{key}: {value}/{epoch_counter[name] * cfg.test_episodes} '
+                  f'({value / (epoch_counter[name] * cfg.test_episodes)})')

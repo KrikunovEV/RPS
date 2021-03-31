@@ -7,10 +7,12 @@ class OADEnvironment:
     """
     OFFEND_ID: int = 0
     DEFEND_ID: int = 1
-    NEGATIVE_REWARD: float = -1.
+    WIN_REWARD: float = 1.
+    LOOSE_REWARD: float = -1.
 
-    def __init__(self, players: int, debug: bool = False):
+    def __init__(self, players: int, zero_sum: bool = True, debug: bool = False):
         self.players = players
+        self.is_zero_sum = zero_sum
         self.debug = debug
         self.obs_space = 2 * (players + 1)
 
@@ -26,11 +28,11 @@ class OADEnvironment:
         """
 
         self.__print('\nНовый раунд: ')
-        rewards = np.ones(self.players)
+        rewards = np.full(self.players, self.WIN_REWARD)
         for offender in range(self.players):
             defender = choices[offender][self.OFFEND_ID]
             if choices[defender][self.DEFEND_ID] != offender:
-                rewards[defender] = self.NEGATIVE_REWARD
+                rewards[defender] = self.LOOSE_REWARD
                 self.__print(f'{offender} напал на {defender} (не защитился)')
             else:
                 self.__print(f'{offender} напал на {defender} (защитился)')
@@ -40,10 +42,16 @@ class OADEnvironment:
             obs[p][choices[p][self.OFFEND_ID]] = 1.
             obs[p][self.players + 1 + choices[p][self.DEFEND_ID]] = 1.
 
-        winners_mask = rewards == 1.
-        total_win_reward = np.sum(winners_mask)
-        if total_win_reward != 0:
-            rewards[winners_mask] = 1. / total_win_reward
+        if self.is_zero_sum:
+            winners_mask = rewards == self.WIN_REWARD
+            total_win_reward = np.sum(winners_mask)
+            if total_win_reward != 0:
+                rewards[winners_mask] = 1. / total_win_reward
+
+            loosers_mask = rewards == self.LOOSE_REWARD
+            total_loose_reward = np.sum(loosers_mask)
+            if total_loose_reward != 0:
+                rewards[loosers_mask] = -1. / total_loose_reward
         self.__print(f'Награды {rewards}')
 
         return obs, rewards
