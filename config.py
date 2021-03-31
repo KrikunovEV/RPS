@@ -19,7 +19,7 @@ class LogType(Enum):
 # mp
 cores = 8
 epochs = 1000
-pickle_file = 'mp_statistic.pickle'
+pickle_file = 'mp_siam_statistic.pickle'
 mp_models = [ModelType.siam_mlp, ModelType.siam_rnn]
 
 # episodes
@@ -29,7 +29,7 @@ round_episodes = 20
 
 # learning
 Train = True  # use False only for Random (non-trainable) Agents!
-lr = 0.001  # 0.001
+lr = 0.002  # 0.001
 hidden_size = 32
 gamma = 1.
 value_loss_penalize = 0.5

@@ -65,7 +65,7 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
         obs, rewards = env.play(choices)
         orchestrator.rewarding(rewards)
 
-        if rewards[2] > rewards[0] and rewards[1] > rewards[0]:
+        if choices[2][0] == 0 and choices[2][1] == 0 and choices[1][0] == 0 and choices[1][1] == 0:
             result += 1
 
     if cfg.logging == cfg.LogType.show:
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     cfg.print_config()
 
     start_time = time.time()
-    coop_result = run('test', cfg.ModelType.siam_mlp, debug=True)
+    coop_result = run('test', cfg.ModelType.siam_rnn, debug=True)
 
     print(f'Time: {time.time() - start_time}')
     print(f'coop: {coop_result}/{cfg.test_episodes}')
