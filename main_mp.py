@@ -13,7 +13,7 @@ class Task:
 
 
 class Result:
-    def __init__(self, coops: int, done: bool, task: Task):
+    def __init__(self, coops, done: bool, task: Task):
         self.coops = coops
         self.done = done
         self.task = task
@@ -32,7 +32,7 @@ def process_work(p_name: str, test_episodes: int, task_q: mp.Queue, result_q: mp
         coops = run(task.epoch, task.model_type)
         result_q.put(Result(coops=coops, done=False, task=task))
         tasks_done += 1
-        print(f'{p_name}: model {task.model_type.name}, epoch {task.epoch}, coops {coops}/{test_episodes}')
+        print(f'{p_name}: model {task.model_type.name}, epoch {task.epoch}, coops {coops} / {test_episodes}')
 
 
 if __name__ == '__main__':
@@ -70,7 +70,7 @@ if __name__ == '__main__':
             processes_done += 1
             continue
 
-        for (key, value) in result.coops:
+        for (key, value) in result.coops.items():
             coops[result.task.model_type.name][key] += value
         epoch_counter[result.task.model_type.name] += 1
         total_epochs += 1
@@ -78,7 +78,7 @@ if __name__ == '__main__':
             for model_type in cfg.mp_models:
                 name = model_type.name
                 print(f'{name} coops:')
-                for (key, value) in coops[name]:
+                for (key, value) in coops[name].items():
                     print(f'{key}: {value}/{epoch_counter[name] * cfg.test_episodes} '
                           f'({value / (epoch_counter[name] * cfg.test_episodes)})')
             if not os.path.exists(cfg.metric_directory):
@@ -92,6 +92,6 @@ if __name__ == '__main__':
         print(f'\nModel name: {name}')
         print(f'Epochs: {epoch_counter[name]} (should be {cfg.epochs})')
         print('Coops:')
-        for (key, value) in coops[name]:
+        for (key, value) in coops[name].items():
             print(f'{key}: {value}/{epoch_counter[name] * cfg.test_episodes} '
                   f'({value / (epoch_counter[name] * cfg.test_episodes)})')
