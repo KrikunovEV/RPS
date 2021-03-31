@@ -79,8 +79,7 @@ if __name__ == '__main__':
                       f'{coops[name] / (epoch_counter[name] * cfg.test_episodes)})')
             if not os.path.exists(cfg.metric_directory):
                 os.mkdir(cfg.metric_directory)
-            filename = str(total_epochs) + '_' + cfg.pickle_file
-            with open(os.path.join(cfg.metric_directory, filename), 'wb') as f:
+            with open(os.path.join(cfg.metric_directory, cfg.pickle_file), 'wb') as f:
                 pickle.dump({'coops_dict': coops, 'epoch_counter_dict': epoch_counter}, f)
 
     print(f'Time: {time.time() - start_time} seconds where {(time.time() - start_time) // 60} minutes')

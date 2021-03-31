@@ -4,14 +4,14 @@ import torch
 
 class NegotiationModel(nn.Module):
 
-    def __init__(self, obs_space: int, message_space: int, action_space: int, cfg):
+    def __init__(self, obs_space: int, cfg):
         super(NegotiationModel, self).__init__()
-        obs_space = obs_space * cfg.players + message_space * cfg.players
+        obs_space = obs_space * cfg.players + (cfg.message_space + 1) * cfg.players
         self.linear = nn.Sequential(
             nn.Linear(obs_space, obs_space // 2),
             nn.LeakyReLU()
         )
-        self.policy = nn.Linear(obs_space // 2, action_space)
+        self.policy = nn.Linear(obs_space // 2, cfg.message_space)
         self.V = nn.Linear(obs_space // 2, 1)
 
     def forward(self, obs):
@@ -19,14 +19,88 @@ class NegotiationModel(nn.Module):
         return self.policy(obs), self.V(obs)
 
 
+class SiamRNNModel(nn.Module):
+
+    def __init__(self, obs_space: int, action_space: int, cfg):
+        super(SiamRNNModel, self).__init__()
+        self.cfg = cfg
+
+        if cfg.use_negotiation:
+            obs_space += cfg.message_space + 1
+
+        if cfg.use_embeddings:
+            obs_space += cfg.embedding_space
+
+        self.rnn = nn.GRUCell(obs_space, cfg.hidden_size)
+        self.policies = nn.Linear(cfg.hidden_size, 2)
+        self.V = nn.Linear(2 * action_space, 1)
+
+    def get_h(self):
+        return None
+
+    def forward(self, obs, messages, embeddings, h):
+        h = torch.zeros((1, self.cfg.hidden_size))
+        actions = []
+
+        for p in range(self.cfg.players):
+            agent_obs = obs[p]
+            if self.cfg.use_negotiation:
+                agent_obs = torch.cat((agent_obs, messages[p]))
+            if self.cfg.use_embeddings:
+                agent_obs = torch.cat((agent_obs, embeddings[p]))
+            h = self.rnn(agent_obs.unsqueeze(0), h)
+            actions.append(self.policies(h[0]))
+
+        actions = torch.cat(actions)
+        return actions[::2], actions[1::2], self.V(actions), None
+
+
+class SiamMLPModel(nn.Module):
+
+    def __init__(self, obs_space: int, action_space: int, cfg):
+        super(SiamMLPModel, self).__init__()
+        self.cfg = cfg
+
+        if cfg.use_negotiation:
+            obs_space += cfg.message_space + 1
+
+        if cfg.use_embeddings:
+            obs_space += cfg.embedding_space
+
+        self.policies = nn.Sequential(
+            nn.Linear(obs_space, obs_space // 2),
+            nn.LeakyReLU(),
+            nn.Linear(obs_space // 2, 2),
+        )
+
+        self.V = nn.Linear(2 * action_space, 1)
+
+    def get_h(self):
+        return None
+
+    def forward(self, obs, messages, embeddings, h):
+        actions = []
+
+        for p in range(self.cfg.players):
+            agent_obs = obs[p]
+            if self.cfg.use_negotiation:
+                agent_obs = torch.cat((agent_obs, messages[p]))
+            if self.cfg.use_embeddings:
+                agent_obs = torch.cat((agent_obs, embeddings[p]))
+            actions.append(self.policies(agent_obs))
+
+        actions = torch.cat(actions)
+        return actions[::2], actions[1::2], self.V(actions), None
+
+
 class AttentionModel(nn.Module):
 
-    def __init__(self, obs_space: int, action_space: int, message_space: int, cfg):
+    def __init__(self, obs_space: int, action_space: int, cfg):
         super(AttentionModel, self).__init__()
         self.cfg = cfg
 
         if cfg.use_negotiation:
-            obs_space += message_space
+            obs_space += cfg.message_space + 1
 
         if cfg.use_embeddings:
             obs_space += cfg.embedding_space
@@ -66,14 +140,14 @@ class AttentionModel(nn.Module):
 
 class BaselineRNNModel(nn.Module):
 
-    def __init__(self, obs_space: int, action_space: int, message_space: int, cfg):
+    def __init__(self, obs_space: int, action_space: int, cfg):
         super(BaselineRNNModel, self).__init__()
         self.cfg = cfg
 
         obs_space = obs_space * cfg.players
 
         if cfg.use_negotiation:
-            obs_space += message_space * cfg.players
+            obs_space += (cfg.message_space + 1) * cfg.players
 
         if cfg.use_embeddings:
             obs_space += cfg.embedding_space * cfg.players
@@ -103,14 +177,14 @@ class BaselineRNNModel(nn.Module):
 
 class BaselineMLPModel(nn.Module):
 
-    def __init__(self, obs_space: int, action_space: int, message_space: int, cfg):
+    def __init__(self, obs_space: int, action_space: int, cfg):
         super(BaselineMLPModel, self).__init__()
         self.cfg = cfg
 
         obs_space = obs_space * cfg.players
 
         if cfg.use_negotiation:
-            obs_space += message_space * cfg.players
+            obs_space += (cfg.message_space + 1) * cfg.players
 
         if cfg.use_embeddings:
             obs_space += cfg.embedding_space * cfg.players
@@ -143,15 +217,19 @@ class BaselineMLPModel(nn.Module):
 
 class DecisionModel(nn.Module):
 
-    def __init__(self, obs_space: int, action_space: int, message_space: int, cfg, model_type):
+    def __init__(self, obs_space: int, action_space: int, cfg, model_type):
         super(DecisionModel, self).__init__()
 
         if model_type == cfg.ModelType.baseline_mlp:
-            self.model = BaselineMLPModel(obs_space, action_space, message_space, cfg)
+            self.model = BaselineMLPModel(obs_space, action_space, cfg)
         elif model_type == cfg.ModelType.baseline_rnn:
-            self.model = BaselineRNNModel(obs_space, action_space, message_space, cfg)
+            self.model = BaselineRNNModel(obs_space, action_space, cfg)
         elif model_type == cfg.ModelType.attention:
-            self.model = AttentionModel(obs_space, action_space, message_space, cfg)
+            self.model = AttentionModel(obs_space, action_space, cfg)
+        elif model_type == cfg.ModelType.siam_mlp:
+            self.model = SiamMLPModel(obs_space, action_space, cfg)
+        elif model_type == cfg.ModelType.siam_rnn:
+            self.model = SiamRNNModel(obs_space, action_space, cfg)
         else:
             raise Exception(f'Model type {model_type.name} has no implementation')
 

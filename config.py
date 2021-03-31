@@ -5,8 +5,8 @@ class ModelType(Enum):
     baseline_mlp = 0
     baseline_rnn = 1
     attention = 2
-    per_agent_mlp = 3
-    per_agent_rnn = 4
+    siam_mlp = 3
+    siam_rnn = 4
 
 
 class LogType(Enum):
@@ -20,7 +20,7 @@ class LogType(Enum):
 cores = 8
 epochs = 1000
 pickle_file = 'mp_statistic.pickle'
-mp_models = [ModelType.baseline_mlp, ModelType.baseline_rnn, ModelType.attention]
+mp_models = [ModelType.siam_mlp, ModelType.siam_rnn]
 
 # episodes
 train_episodes = 3000
@@ -29,19 +29,20 @@ round_episodes = 20
 
 # learning
 Train = True  # use False only for Random (non-trainable) Agents!
-lr = 0.00075
+lr = 0.001  # 0.001
 hidden_size = 32
 gamma = 1.
 value_loss_penalize = 0.5
 
 # exploration
-entropy_coef = 0.1
+entropy_coef = 0.05
 epsilon_upper = 0.5
 epsilon_lower = 0.001
 epsilon_step = (epsilon_upper - epsilon_lower) / train_episodes
 
 # negotiation
 use_negotiation = True
+message_space = 3
 use_embeddings = False
 embedding_space = 32
 is_channel_open = False
@@ -51,7 +52,7 @@ negotiation_steps = 2
 # common
 agents = 1  # number of agens who won't negotiate
 players = agents + negotiable_agents
-shuffle = True
+shuffle = False
 logging = LogType.local
 metric_directory = 'metrics'
 
@@ -73,6 +74,7 @@ def print_config():
     print(fg.orange + 'Cores: ' + fg.rs + f'{cores}')
     print(fg.orange + 'Epochs: ' + fg.rs + f'{epochs}')
     print(fg.orange + 'Pickle file: ' + fg.rs + f'{pickle_file}')
+    print(fg.orange + 'Mp models: ' + fg.rs + f'{mp_models}')
 
     print('\n' + fg.orange_dark + 'Episodes:' + fg.rs)
     print(fg.orange + 'Train episodes: ' + fg.rs + f'{train_episodes}')
@@ -94,6 +96,7 @@ def print_config():
 
     print('\n' + fg.orange_dark + 'Negotiation:' + fg.rs)
     print(fg.orange + 'Use negotiation: ' + fg.rs + f'{use_negotiation}')
+    print(fg.orange + 'Message space: ' + fg.rs + f'{message_space}')
     print(fg.orange + 'Use embeddings: ' + fg.rs + f'{use_embeddings}')
     print(fg.orange + 'Embedding space: ' + fg.rs + f'{embedding_space}')
     print(fg.orange + 'Is channel open: ' + fg.rs + f'{is_channel_open}')

@@ -10,11 +10,9 @@ class Orchestrator:
     def __init__(self, obs_space: int, action_space: int, model_type, cfg):
         self.cfg = cfg
         self.messages = None
-        self.message_space = action_space + 1
         self.Agents = np.array([Agent(id,
                                       obs_space,
                                       action_space,
-                                      self.message_space,
                                       model_type,
                                       cfg) for id in range(cfg.players)])
         self.ind = np.arange(cfg.players)
@@ -38,7 +36,7 @@ class Orchestrator:
     def negotiation(self, obs):
         messages = []
         for a in range(self.cfg.players):
-            tmp = torch.zeros(self.message_space)
+            tmp = torch.zeros(self.cfg.message_space + 1)
             tmp[-1] = 1.
             messages.append(tmp)
 

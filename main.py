@@ -11,6 +11,9 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
         raise Exception(f'You can not use attention model if negotiation ({cfg.use_negotiation}) and embedding '
                         f'({cfg.use_embeddings}) are disabled both.')
 
+    if cfg.use_embeddings:
+        raise Exception('There is no embeddings implementation yet.')
+
     env = OADEnvironment(players=cfg.players, debug=debug)
     orchestrator = Orchestrator(obs_space=env.get_obs_space(),
                                 action_space=env.get_action_space(),
@@ -87,7 +90,7 @@ if __name__ == '__main__':
     cfg.print_config()
 
     start_time = time.time()
-    coop_result = run('test', cfg.ModelType.attention)
+    coop_result = run('test', cfg.ModelType.siam_mlp, debug=True)
 
     print(f'Time: {time.time() - start_time}')
     print(f'coop: {coop_result}/{cfg.test_episodes}')

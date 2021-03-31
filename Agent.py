@@ -6,21 +6,20 @@ from Model import DecisionModel, NegotiationModel
 
 
 class Agent:
-    def __init__(self, id: int, obs_space: int, action_space: int, message_space: int, model_type, cfg):
+    def __init__(self, id: int, obs_space: int, action_space: int, model_type, cfg):
         self.cfg = cfg
         self.id = id
         self.negotiable = True if id >= cfg.agents else False
         self.agent_label = f'{id}' + (' negotiable' if self.negotiable else '')
         self.eval = False
-        self.message_space = message_space
         self.model_type = model_type
 
-        self.model = DecisionModel(obs_space, action_space, message_space, cfg, model_type)
+        self.model = DecisionModel(obs_space, action_space, cfg, model_type)
         self.h = self.model.get_h()
         self.negot_model = []
         list_params = list(self.model.parameters())
         for step in range(cfg.negotiation_steps):
-            self.negot_model.append(NegotiationModel(obs_space, message_space, action_space, cfg))
+            self.negot_model.append(NegotiationModel(obs_space, cfg))
             list_params = list_params + list(self.negot_model[-1].parameters())
         self.optimizer = optim.Adam(list_params, lr=cfg.lr)
 
@@ -40,7 +39,7 @@ class Agent:
         self.h = self.model.get_h()
 
     def negotiate(self, obs_negot, step):
-        message = torch.zeros(self.message_space)
+        message = torch.zeros(self.cfg.message_space + 1)
         if self.negotiable:
             negotiate_logits, negotiate_V = self.negot_model[step](obs_negot)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
@@ -76,8 +75,8 @@ class Agent:
             d_action = np.random.choice(d_policy.shape[0], p=d_policy.detach().numpy())
 
         if not self.eval:
-            if a_policy[a_action] < 0.0000001 and d_policy[d_action] < 0.0000001:
-                self.logs.append(torch.log(a_policy[a_action] * d_policy[d_action] + 0.001))
+            if a_policy[a_action] * d_policy[d_action] < 0.00000001:
+                self.logs.append(torch.log(a_policy[a_action] * d_policy[d_action] + 0.00000001))
             else:
                 self.logs.append(torch.log(a_policy[a_action] * d_policy[d_action]))
             self.value.append(V)
