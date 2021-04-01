@@ -100,15 +100,15 @@ class Orchestrator:
 
         fig, ax = plt.subplots(1, 2, figsize=(16, 9))
         ax[0].set_title('Offends', fontsize=24)
-        ax[0].tick_params(labelsize=12)
+        ax[0].tick_params(labelsize=13)
         ax[1].set_title('Defends', fontsize=24)
-        ax[1].tick_params(labelsize=12)
+        ax[1].tick_params(labelsize=13)
         xlabels = [agent.id + 1 for agent in self.Agents]
         ylabels = [agent.agent_label for agent in self.Agents]
         sn.heatmap(self.AM, annot=True, cmap='Reds', xticklabels=xlabels, yticklabels=ylabels, ax=ax[0], square=True,
-                   cbar=False, fmt='g')
+                   cbar=False, fmt='g', annot_kws={"size": 15})
         sn.heatmap(self.DM, annot=True, cmap='Blues', xticklabels=xlabels, yticklabels=ylabels, ax=ax[1], square=True,
-                   cbar=False, fmt='g')
+                   cbar=False, fmt='g', annot_kws={"size": 15})
         for (a, d) in zip(ax[0].yaxis.get_ticklabels(), ax[1].yaxis.get_ticklabels()):
             a.set_verticalalignment('center')
             a.set_rotation('horizontal')
