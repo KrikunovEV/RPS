@@ -10,15 +10,21 @@ class Orchestrator:
     def __init__(self, obs_space: int, action_space: int, model_type, cfg):
         self.cfg = cfg
         self.messages = None
-        self.Agents = np.array([Agent(id,
-                                      obs_space,
-                                      action_space,
-                                      model_type,
-                                      cfg) for id in range(cfg.players)])
         self.ind = np.arange(cfg.players)
         self.eval = False
         self.AM = np.zeros((cfg.players, cfg.players), dtype=np.int)
         self.DM = np.zeros((cfg.players, cfg.players), dtype=np.int)
+        self.negotiation_steps = np.max(cfg.negotiation_steps)
+
+        negotiation_steps = cfg.negotiation_steps
+        if isinstance(negotiation_steps, int):
+            negotiation_steps = np.full(cfg.players, negotiation_steps)
+        self.Agents = np.array([Agent(id,
+                                      obs_space,
+                                      action_space,
+                                      model_type,
+                                      negotiation_steps[id],
+                                      cfg) for id in range(cfg.players)])
 
     def shuffle(self, obs):
         np.random.shuffle(self.ind)
@@ -41,7 +47,7 @@ class Orchestrator:
             messages.append(tmp)
 
         obs = torch.from_numpy(obs).reshape(-1)
-        for step in range(self.cfg.negotiation_steps):
+        for step in range(self.negotiation_steps):
             obs_negot = torch.cat((obs, torch.cat(messages)))
             messages = [agent.negotiate(obs_negot, step) for agent in self.Agents[self.ind]]
         self.messages = messages

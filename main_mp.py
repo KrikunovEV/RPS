@@ -3,6 +3,7 @@ import time
 import multiprocessing as mp
 import os
 import pickle
+import numpy as np
 
 
 class Task:
@@ -58,9 +59,14 @@ if __name__ == '__main__':
     for core in range(cfg.cores):
         task_q.put(Task(epoch=None, model_type=None, done=True))
 
-    coops = dict(zip([model_type.name for model_type in cfg.mp_models],
-                     [{'1 & 2 vs 3': 0, '2 & 3 vs 1': 0, '1 & 3 vs 2': 0} for _ in cfg.mp_models]))
+    model_coops = dict(zip([model_type.name for model_type in cfg.mp_models],
+                           [{'1 & 2 vs 3': [], '2 & 3 vs 1': [], '1 & 3 vs 2': []} for _ in cfg.mp_models]))
     epoch_counter = dict(zip([model_type.name for model_type in cfg.mp_models], [0 for _ in cfg.mp_models]))
+
+    # need to fix it!!!!!! model_type undefined !!!!!
+    directory_statistics = os.path.join(cfg.metric_directory, model_type.name, cfg.experiment_name, 'epoch')
+    os.makedirs(directory_statistics, exist_ok=True)
+
     processes_done = 0
     total_epochs = 0
     while processes_done != cfg.cores:
@@ -71,20 +77,18 @@ if __name__ == '__main__':
             continue
 
         for (key, value) in result.coops.items():
-            coops[result.task.model_type.name][key] += value
+            model_coops[result.task.model_type.name][key].append(value)
         epoch_counter[result.task.model_type.name] += 1
         total_epochs += 1
         if total_epochs % 10 == 0:
             for model_type in cfg.mp_models:
                 name = model_type.name
                 print(f'{name} coops:')
-                for (key, value) in coops[name].items():
-                    print(f'{key}: {value}/{epoch_counter[name] * cfg.test_episodes} '
-                          f'({value / (epoch_counter[name] * cfg.test_episodes)})')
-            if not os.path.exists(cfg.metric_directory):
-                os.mkdir(cfg.metric_directory)
-            with open(os.path.join(cfg.metric_directory, cfg.pickle_file), 'wb') as f:
-                pickle.dump({'coops_dict': coops, 'epoch_counter_dict': epoch_counter}, f)
+                for (key, value) in model_coops[name].items():
+                    print(f'{key}: {np.sum(value)}/{epoch_counter[name] * cfg.test_episodes} '
+                          f'({np.sum(value) / (epoch_counter[name] * cfg.test_episodes)})')
+            with open(os.path.join(directory_statistics, cfg.pickle_file), 'wb') as f:
+                pickle.dump({'coops_dict': model_coops, 'epoch_counter_dict': epoch_counter}, f)
 
     print(f'Time: {time.time() - start_time} seconds where {(time.time() - start_time) // 60} minutes')
     for model_type in cfg.mp_models:
@@ -92,6 +96,6 @@ if __name__ == '__main__':
         print(f'\nModel name: {name}')
         print(f'Epochs: {epoch_counter[name]} (should be {cfg.epochs})')
         print('Coops:')
-        for (key, value) in coops[name].items():
-            print(f'{key}: {value}/{epoch_counter[name] * cfg.test_episodes} '
-                  f'({value / (epoch_counter[name] * cfg.test_episodes)})')
+        for (key, value) in model_coops[name].items():
+            print(f'{key}: {np.sum(value)}/{epoch_counter[name] * cfg.test_episodes} '
+                  f'({np.sum(value) / (epoch_counter[name] * cfg.test_episodes)})')

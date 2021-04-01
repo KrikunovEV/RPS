@@ -19,11 +19,11 @@ class LogType(Enum):
 # mp
 cores = 7
 epochs = 1000
-pickle_file = 'mp_siam_statistic.pickle'
+pickle_file = 'coop_statistic.pickle'
 mp_models = [ModelType.siam_mlp]
 
 # episodes
-train_episodes = 2000  # 3000
+train_episodes = 6000  # 3000
 test_episodes = 100
 round_episodes = 20
 
@@ -46,16 +46,16 @@ message_space = 3
 use_embeddings = False
 embedding_space = 32
 is_channel_open = True
-negotiable_agents = 2
-negotiation_steps = 2
+negotiable_agents = 3
+negotiation_steps = [2, 4, 4]  # can be int or list[int] (len = players)
 
 # common
-agents = 1  # number of agens who won't negotiate
+agents = 0  # number of agens who won't negotiate
 players = agents + negotiable_agents
 shuffle = False
 logging = LogType.local
 metric_directory = 'metrics'
-experiment_name = 'test'
+experiment_name = 'distributions_diff_steps'
 
 
 def is_require_reset(model_type: ModelType):

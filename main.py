@@ -14,6 +14,9 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
     if cfg.use_embeddings:
         raise Exception('There is no embeddings implementation yet.')
 
+    if isinstance(cfg.negotiation_steps, list) and len(cfg.negotiation_steps) != cfg.players:
+        raise Exception('cfg.negotiation_steps is a list but len not equal to number of players.')
+
     env = OADEnvironment(players=cfg.players, debug=debug)
     orchestrator = Orchestrator(obs_space=env.get_obs_space(),
                                 action_space=env.get_action_space(),

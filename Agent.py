@@ -6,19 +6,21 @@ from Model import DecisionModel, NegotiationModel
 
 
 class Agent:
-    def __init__(self, id: int, obs_space: int, action_space: int, model_type, cfg):
+    def __init__(self, id: int, obs_space: int, action_space: int, model_type, negotiation_steps: int, cfg):
         self.cfg = cfg
         self.id = id
         self.negotiable = True if id >= cfg.agents else False
         self.agent_label = f'{id + 1}' + (' negotiable' if self.negotiable else '')
         self.eval = False
         self.model_type = model_type
+        self.negotiation_steps = negotiation_steps
+        self.negotiate_action = -1
 
         self.model = DecisionModel(obs_space, action_space, cfg, model_type)
         self.h = self.model.get_h()
         self.negot_model = []
         list_params = list(self.model.parameters())
-        for step in range(cfg.negotiation_steps):
+        for step in range(negotiation_steps):
             self.negot_model.append(NegotiationModel(obs_space, cfg))
             list_params = list_params + list(self.negot_model[-1].parameters())
         self.optimizer = optim.Adam(list_params, lr=cfg.lr)
@@ -40,20 +42,20 @@ class Agent:
 
     def negotiate(self, obs_negot, step):
         message = torch.zeros(self.cfg.message_space + 1)
-        if self.negotiable:
+        if self.negotiable and step < self.negotiation_steps:
             negotiate_logits, negotiate_V = self.negot_model[step](obs_negot)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
-            negotiate_action = np.random.choice(negotiate_policy.shape[0], p=negotiate_policy.detach().numpy())
+            self.negotiate_action = np.random.choice(negotiate_policy.shape[0], p=negotiate_policy.detach().numpy())
 
             if not self.eval:
-                self.logs.append(torch.log(negotiate_policy[negotiate_action]))
+                self.logs.append(torch.log(negotiate_policy[self.negotiate_action]))
                 self.entropy.append((negotiate_policy * torch.log_softmax(negotiate_logits, dim=-1)).sum())
                 self.reward.append(0)
                 self.value.append(negotiate_V)
 
-            message[negotiate_action] = 1.
+            message[self.negotiate_action] = 1.
         else:
-            message[-1] = 1.
+            message[self.negotiate_action] = 1.
 
         return message
 
