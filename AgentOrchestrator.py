@@ -48,7 +48,10 @@ class Orchestrator:
 
     def decisions(self, obs, epsilon):
         obs = torch.from_numpy(obs)
-        messages = torch.stack(self.messages)
+        if self.messages is not None:
+            messages = torch.stack(self.messages)
+        else:
+            messages = self.messages
         choices = np.array([agent.make_decision(obs, messages, epsilon) for agent in self.Agents[self.ind]])
         choices[self.ind] = choices[np.arange(self.cfg.players)]
         if self.eval:
