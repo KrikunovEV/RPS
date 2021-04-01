@@ -99,16 +99,23 @@ class Orchestrator:
             plt.savefig(f'{directory}/rewarding.png')
 
         fig, ax = plt.subplots(1, 2, figsize=(16, 9))
-        ax[0].set_title('Attacks')
-        ax[1].set_title('Defends')
-        labels = [agent.agent_label for agent in self.Agents]
-        sn.heatmap(self.AM, annot=True, cmap='Reds', xticklabels=labels, yticklabels=labels, ax=ax[0], square=True,
+        ax[0].set_title('Offends', fontsize=24)
+        ax[0].tick_params(labelsize=12)
+        ax[1].set_title('Defends', fontsize=24)
+        ax[1].tick_params(labelsize=12)
+        xlabels = [agent.id + 1 for agent in self.Agents]
+        ylabels = [agent.agent_label for agent in self.Agents]
+        sn.heatmap(self.AM, annot=True, cmap='Reds', xticklabels=xlabels, yticklabels=ylabels, ax=ax[0], square=True,
                    cbar=False, fmt='g')
-        sn.heatmap(self.DM, annot=True, cmap='Blues', xticklabels=labels, yticklabels=labels, ax=ax[1],  square=True,
+        sn.heatmap(self.DM, annot=True, cmap='Blues', xticklabels=xlabels, yticklabels=ylabels, ax=ax[1], square=True,
                    cbar=False, fmt='g')
         for (a, d) in zip(ax[0].yaxis.get_ticklabels(), ax[1].yaxis.get_ticklabels()):
             a.set_verticalalignment('center')
+            a.set_rotation('horizontal')
             d.set_verticalalignment('center')
+            d.set_rotation('horizontal')
+
+        fig.tight_layout()
         if directory is not None:
             plt.savefig(f'{directory}/action_matrix.png')
 

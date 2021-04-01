@@ -10,7 +10,7 @@ class Agent:
         self.cfg = cfg
         self.id = id
         self.negotiable = True if id >= cfg.agents else False
-        self.agent_label = f'{id}' + (' negotiable' if self.negotiable else '')
+        self.agent_label = f'{id + 1}' + (' negotiable' if self.negotiable else '')
         self.eval = False
         self.model_type = model_type
 
