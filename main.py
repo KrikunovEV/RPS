@@ -76,7 +76,7 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
         orchestrator.plot_metrics(directory=None)
     elif cfg.logging == cfg.LogType.local:
         directory = os.path.join(cfg.metric_directory, model_type.name, cfg.experiment_name, f'epoch_{epoch}')
-        os.makedirs(directory)
+        os.makedirs(directory, exist_ok=True)
         orchestrator.plot_metrics(directory=directory)
     elif cfg.logging == cfg.LogType.mlflow:
         print(f'Log type mlflow not implemented. Logs are not saved.')

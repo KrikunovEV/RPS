@@ -79,17 +79,14 @@ class SiamMLPModel(nn.Module):
         return None
 
     def forward(self, obs, messages, embeddings, h):
-        actions = []
+        if self.cfg.use_negotiation:
+            obs = torch.cat((obs, messages), dim=1)
 
-        for p in range(self.cfg.players):
-            agent_obs = obs[p]
-            if self.cfg.use_negotiation:
-                agent_obs = torch.cat((agent_obs, messages[p]))
-            if self.cfg.use_embeddings:
-                agent_obs = torch.cat((agent_obs, embeddings[p]))
-            actions.append(self.policies(agent_obs))
+        if self.cfg.use_embeddings:
+            obs = torch.cat((obs, embeddings), dim=1)
 
-        actions = torch.cat(actions)
+        actions = self.policies(obs).reshape(-1)
+
         return actions[::2], actions[1::2], self.V(actions), None
 
 
