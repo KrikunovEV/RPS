@@ -75,14 +75,8 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
     if cfg.logging == cfg.LogType.show:
         orchestrator.plot_metrics(directory=None)
     elif cfg.logging == cfg.LogType.local:
-        if not os.path.exists(cfg.metric_directory):
-            os.mkdir(cfg.metric_directory)
-        directory = os.path.join(cfg.metric_directory, model_type.name)
-        if not os.path.exists(directory):
-            os.mkdir(directory)
-        directory = os.path.join(directory, f'{epoch}')
-        if not os.path.exists(directory):
-            os.mkdir(directory)
+        directory = os.path.join(cfg.metric_directory, model_type.name, cfg.experiment_name, f'epoch_{epoch}')
+        os.makedirs(directory)
         orchestrator.plot_metrics(directory=directory)
     elif cfg.logging == cfg.LogType.mlflow:
         print(f'Log type mlflow not implemented. Logs are not saved.')
@@ -94,7 +88,7 @@ if __name__ == '__main__':
     cfg.print_config()
 
     start_time = time.time()
-    coops = run('test', cfg.ModelType.siam_mlp, debug=True)
+    coops = run('main', cfg.ModelType.siam_mlp, debug=True)
 
     print(f'Time: {time.time() - start_time}')
     print('Coops:')

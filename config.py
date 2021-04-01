@@ -17,13 +17,13 @@ class LogType(Enum):
 
 
 # mp
-cores = 1
-epochs = 100
+cores = 7
+epochs = 1000
 pickle_file = 'mp_siam_statistic.pickle'
 mp_models = [ModelType.siam_mlp]
 
 # episodes
-train_episodes = 3000
+train_episodes = 2000  # 3000
 test_episodes = 100
 round_episodes = 20
 
@@ -46,15 +46,16 @@ message_space = 3
 use_embeddings = False
 embedding_space = 32
 is_channel_open = True
-negotiable_agents = 3
+negotiable_agents = 2
 negotiation_steps = 2
 
 # common
-agents = 0  # number of agens who won't negotiate
+agents = 1  # number of agens who won't negotiate
 players = agents + negotiable_agents
 shuffle = False
 logging = LogType.local
 metric_directory = 'metrics'
+experiment_name = 'test'
 
 
 def is_require_reset(model_type: ModelType):
@@ -109,6 +110,7 @@ def print_config():
     print(fg.orange + 'Shuffle: ' + fg.rs + f'{shuffle}')
     print(fg.orange + 'Logging: ' + fg.rs + f'{logging.name}')
     print(fg.orange + 'Metric directory: ' + fg.rs + f'{metric_directory}')
+    print(fg.orange + 'Experiment name: ' + fg.rs + f'{experiment_name}')
 
 
 if __name__ == '__main__':
