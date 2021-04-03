@@ -18,11 +18,20 @@ class Agent:
 
         self.model = DecisionModel(obs_space, action_space, cfg, model_type)
         self.h = self.model.get_h()
-        self.negot_model = []
         list_params = list(self.model.parameters())
-        for step in range(negotiation_steps):
-            self.negot_model.append(NegotiationModel(obs_space, cfg))
-            list_params = list_params + list(self.negot_model[-1].parameters())
+
+        self.negot_model = None
+        if cfg.use_negotiation:
+            self.negot_model = []
+            for step in range(negotiation_steps):
+                self.negot_model.append(NegotiationModel(obs_space, cfg))
+                list_params = list_params + list(self.negot_model[-1].parameters())
+
+        self.embeddings = None
+        if cfg.use_embeddings:
+            self.embeddings = torch.nn.Parameter(torch.randn((cfg.players, cfg.embedding_space)), requires_grad=True)
+            list_params = list_params + [self.embeddings]
+
         self.optimizer = optim.Adam(list_params, lr=cfg.lr)
 
         self.logs = []
@@ -64,7 +73,7 @@ class Agent:
             messages = torch.zeros_like(messages)
             messages[:, -1] = 1.  # empty messages
 
-        a_logits, d_logits, V, self.h = self.model(obs, messages, None, self.h)
+        a_logits, d_logits, V, self.h = self.model(obs, messages, self.embeddings, self.h)
 
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)

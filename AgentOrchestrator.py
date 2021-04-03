@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import seaborn as sn
+from sklearn.decomposition import PCA
 from Agent import Agent
 
 
@@ -124,6 +125,25 @@ class Orchestrator:
         fig.tight_layout()
         if directory is not None:
             plt.savefig(f'{directory}/action_matrix.png')
+
+        if self.cfg.use_embeddings:
+            fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+            ax.set_title('embeddings PCA', fontsize=24)
+            embeddings = []
+            for agent in self.Agents:
+                embeddings.append(agent.embeddings.data)
+            embeddings = torch.stack(embeddings).reshape(-1, self.cfg.embedding_space)
+            pca = PCA(n_components=2)
+            embeddings = pca.fit_transform(embeddings.detach().numpy())
+            embeddings = embeddings.reshape(self.cfg.players, self.cfg.players, 2)
+            for i, agent in enumerate(self.Agents):
+                ax.scatter(embeddings[i, :, 0], embeddings[i, :, 1], label=agent.get_label(), s=150)
+                for agent, emb in zip(self.Agents, embeddings[i]):
+                    ax.annotate(f'{agent.id + 1}', emb + np.array([0, 0.075]), fontsize=14, ha='center')
+            ax.legend()
+            fig.tight_layout()
+            if directory is not None:
+                plt.savefig(f'{directory}/embeddings.png')
 
         if directory is None:
             plt.show()

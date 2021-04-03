@@ -11,9 +11,6 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
         raise Exception(f'You can not use attention model if negotiation ({cfg.use_negotiation}) and embedding '
                         f'({cfg.use_embeddings}) are disabled both.')
 
-    if cfg.use_embeddings:
-        raise Exception('There is no embeddings implementation yet.')
-
     if isinstance(cfg.negotiation_steps, list) and len(cfg.negotiation_steps) != cfg.players:
         raise Exception('cfg.negotiation_steps is a list but len not equal to number of players.')
 
