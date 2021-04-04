@@ -13,8 +13,6 @@ class Orchestrator:
         self.messages = None
         self.ind = np.arange(cfg.players)
         self.eval = False
-        self.AM = np.zeros((cfg.players, cfg.players), dtype=np.int)
-        self.DM = np.zeros((cfg.players, cfg.players), dtype=np.int)
         self.negotiation_steps = np.max(cfg.negotiation_steps)
 
         negotiation_steps = cfg.negotiation_steps
@@ -26,6 +24,11 @@ class Orchestrator:
                                       model_type,
                                       negotiation_steps[id],
                                       cfg) for id in range(cfg.players)])
+
+        # only in test episodes
+        self.AM = np.zeros((cfg.players, cfg.players), dtype=np.int)
+        self.DM = np.zeros((cfg.players, cfg.players), dtype=np.int)
+        self.messages_distr = np.zeros((cfg.players, self.negotiation_steps, cfg.message_space + 1), np.int)
 
     def shuffle(self, obs):
         np.random.shuffle(self.ind)
@@ -51,6 +54,9 @@ class Orchestrator:
         for step in range(self.negotiation_steps):
             obs_negot = torch.cat((obs, torch.cat(messages)))
             messages = [agent.negotiate(obs_negot, step) for agent in self.Agents[self.ind]]
+            if self.eval:
+                for i in range(self.cfg.players):
+                    self.messages_distr[i, step] += messages[i].detach().numpy().astype(np.int)
         self.messages = messages
 
     def decisions(self, obs, epsilon):
@@ -125,6 +131,28 @@ class Orchestrator:
         fig.tight_layout()
         if directory is not None:
             plt.savefig(f'{directory}/action_matrix.png')
+
+        if self.cfg.use_negotiation:
+            fig, ax = plt.subplots(1, self.negotiation_steps, figsize=(16, 9))
+            labels = np.arange(1, self.cfg.message_space + 1).tolist() + ['empty']
+            width = 0.2
+            locations = np.arange(self.cfg.message_space + 1)
+            player_loc = np.linspace(-width, width, self.cfg.players)
+            for step in range(self.negotiation_steps):
+                for i in range(self.cfg.players):
+                    ax[step].bar(locations + player_loc[i], self.messages_distr[i, step], width,
+                                 label=self.Agents[i].get_label())
+                ax[step].set_ylabel('message count', fontsize=16)
+                ax[step].set_xlabel('message category', fontsize=16)
+                ax[step].set_title(f'Negotiation step {step + 1}', fontsize=18)
+                ax[step].set_xticks(locations)
+                ax[step].set_xticklabels(labels)
+                ax[step].tick_params(labelsize=13)
+                ax[step].legend()
+
+            fig.tight_layout()
+            if directory is not None:
+                plt.savefig(f'{directory}/messages.png')
 
         if self.cfg.use_embeddings:
             fig, ax = plt.subplots(1, 1, figsize=(16, 9))

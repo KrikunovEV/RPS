@@ -23,7 +23,7 @@ pickle_file = 'coop_statistic.pickle'
 mp_models = [ModelType.siam_mlp]
 
 # episodes
-train_episodes = 5000  # 3000
+train_episodes = 3000  # 3000
 test_episodes = 100
 round_episodes = 20
 
@@ -43,7 +43,7 @@ epsilon_step = (epsilon_upper - epsilon_lower) / train_episodes
 # negotiation
 use_negotiation = True
 message_space = 3
-use_embeddings = True
+use_embeddings = False
 embedding_space = 64
 is_channel_open = True
 negotiable_agents = 2

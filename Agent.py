@@ -29,7 +29,7 @@ class Agent:
 
         self.embeddings = None
         if cfg.use_embeddings:
-            self.embeddings = torch.nn.Parameter(torch.randn((cfg.players, cfg.embedding_space)), requires_grad=True)
+            self.embeddings = torch.nn.Parameter(torch.ones((cfg.players, cfg.embedding_space)), requires_grad=True)
             list_params = list_params + [self.embeddings]
 
         self.optimizer = optim.Adam(list_params, lr=cfg.lr)
