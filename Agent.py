@@ -2,37 +2,37 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as functional
 import numpy as np
-from Model import DecisionModel, NegotiationModel
+from Model import SiamMLPModel, NegotiationModel
 
 
 class Agent:
     def __init__(self, id: int, obs_space: int, action_space: int, model_type, negotiation_steps: int, cfg):
         self.cfg = cfg
         self.id = id
-        self.negotiable = True if id >= cfg.agents else False
+        self.negotiable = True if id < cfg.negotiation.players else False
         self.agent_label = f'{id + 1}' + (' negotiable' if self.negotiable else '')
         self.eval = False
         self.model_type = model_type
         self.negotiation_steps = negotiation_steps
         self.negotiate_action = -1
 
-        self.model = DecisionModel(obs_space, action_space, cfg, model_type)
-        self.h = self.model.get_h()
+        self.model = SiamMLPModel(obs_space, action_space, cfg)
         list_params = list(self.model.parameters())
 
         self.negot_model = None
-        if cfg.use_negotiation:
+        if cfg.negotiation.use:
             self.negot_model = []
             for step in range(negotiation_steps):
                 self.negot_model.append(NegotiationModel(obs_space, cfg))
                 list_params = list_params + list(self.negot_model[-1].parameters())
 
         self.embeddings = None
-        if cfg.use_embeddings:
-            self.embeddings = torch.nn.Parameter(torch.ones((cfg.players, cfg.embedding_space)), requires_grad=True)
+        if cfg.embeddings.use:
+            self.embeddings = torch.nn.Parameter(torch.ones((cfg.common.players, cfg.embeddings.space)),
+                                                 requires_grad=True)
             list_params = list_params + [self.embeddings]
 
-        self.optimizer = optim.Adam(list_params, lr=cfg.lr)
+        self.optimizer = optim.Adam(list_params, lr=cfg.train.lr)
 
         self.logs = []
         self.value = []
@@ -46,13 +46,13 @@ class Agent:
     def set_eval(self, eval: bool):
         self.eval = eval
 
-    def reset_h(self):
-        self.h = self.model.get_h()
+    def reset_memory(self):
+        raise Exception('There is no any model yet for resetting its temporal hidden memory')
 
-    def negotiate(self, obs_negot, step):
-        message = torch.zeros(self.cfg.message_space + 1)
+    def negotiate(self, obs, messages, step):
+        message = torch.zeros(self.cfg.negotiation.space + 1)
         if self.negotiable and step < self.negotiation_steps:
-            negotiate_logits, negotiate_V = self.negot_model[step](obs_negot)
+            negotiate_logits, negotiate_V = self.negot_model[step](obs, messages, self.embeddings)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
             self.negotiate_action = np.random.choice(negotiate_policy.shape[0], p=negotiate_policy.detach().numpy())
 
@@ -69,11 +69,11 @@ class Agent:
         return message
 
     def make_decision(self, obs, messages, epsilon):
-        if not self.negotiable and not self.cfg.is_channel_open:
+        if not self.negotiable and not self.cfg.negotiation.is_channel_open:
             messages = torch.zeros_like(messages)
             messages[:, -1] = 1.  # empty messages
 
-        a_logits, d_logits, V, self.h = self.model(obs, messages, self.embeddings, self.h)
+        a_logits, d_logits, V = self.model(obs, messages, self.embeddings)
 
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)
@@ -105,17 +105,18 @@ class Agent:
             self.reward_metric.append(reward)
 
     def train(self):
-        if self.cfg.Train:
+        if self.cfg.train.do_backward:
             G = 0
             policy_loss, value_loss = 0, 0
             for i in reversed(range(len(self.reward))):
-                G = self.reward[i] + self.cfg.gamma * G
+                G = self.reward[i] + self.cfg.train.gamma * G
                 advantage = G - self.value[i]
 
                 value_loss = value_loss + 0.5 * advantage.pow(2)
-                policy_loss = policy_loss - (advantage.detach() * self.logs[i] + self.cfg.entropy_coef * self.entropy[i])
+                policy_loss = policy_loss - (advantage.detach() * self.logs[i] +
+                                             self.cfg.train.entropy_penalize * self.entropy[i])
 
-            loss = self.cfg.value_loss_penalize * value_loss + policy_loss
+            loss = self.cfg.train.value_loss_penalize * value_loss + policy_loss
 
             self.optimizer.zero_grad()
             loss.backward()

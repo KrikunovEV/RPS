@@ -11,32 +11,30 @@ class Orchestrator:
     def __init__(self, obs_space: int, action_space: int, model_type, cfg):
         self.cfg = cfg
         self.messages = None
-        self.ind = np.arange(cfg.players)
+        self.ind = np.arange(cfg.common.players)
         self.eval = False
-        self.negotiation_steps = np.max(cfg.negotiation_steps)
+        self.negotiation_steps = np.max(cfg.negotiation.steps)
 
-        negotiation_steps = cfg.negotiation_steps
-        if isinstance(negotiation_steps, int):
-            negotiation_steps = np.full(cfg.players, negotiation_steps)
+        print()
         self.Agents = np.array([Agent(id,
                                       obs_space,
                                       action_space,
                                       model_type,
-                                      negotiation_steps[id],
-                                      cfg) for id in range(cfg.players)])
+                                      cfg.negotiation.steps[id],
+                                      cfg) for id in range(cfg.common.players)])
 
         # only in test episodes
-        self.AM = np.zeros((cfg.players, cfg.players), dtype=np.int)
-        self.DM = np.zeros((cfg.players, cfg.players), dtype=np.int)
-        self.messages_distr = np.zeros((cfg.players, self.negotiation_steps, cfg.message_space + 1), np.int)
+        self.AM = np.zeros((cfg.common.players, cfg.common.players), dtype=np.int)
+        self.DM = np.zeros((cfg.common.players, cfg.common.players), dtype=np.int)
+        self.messages_distr = np.zeros((cfg.common.players, self.negotiation_steps, cfg.negotiation.space + 1), np.int)
 
     def shuffle(self, obs):
         np.random.shuffle(self.ind)
         return obs[self.ind]
 
-    def reset_h(self):
+    def reset_memory(self):
         for agent in self.Agents:
-            agent.reset_h()
+            agent.reset_memory()
 
     def set_eval(self, eval: bool):
         self.eval = eval
@@ -45,17 +43,17 @@ class Orchestrator:
 
     def negotiation(self, obs):
         messages = []
-        for a in range(self.cfg.players):
-            tmp = torch.zeros(self.cfg.message_space + 1)
+        for a in range(self.cfg.common.players):
+            tmp = torch.zeros(self.cfg.negotiation.space + 1)
             tmp[-1] = 1.
             messages.append(tmp)
 
-        obs = torch.from_numpy(obs).reshape(-1)
+        obs = torch.from_numpy(obs)
         for step in range(self.negotiation_steps):
-            obs_negot = torch.cat((obs, torch.cat(messages)))
-            messages = [agent.negotiate(obs_negot, step) for agent in self.Agents[self.ind]]
+            messages = torch.stack(messages)
+            messages = [agent.negotiate(obs, messages, step) for agent in self.Agents[self.ind]]
             if self.eval:
-                for i in range(self.cfg.players):
+                for i in range(self.cfg.common.players):
                     self.messages_distr[i, step] += messages[i].detach().numpy().astype(np.int)
         self.messages = messages
 
@@ -66,7 +64,7 @@ class Orchestrator:
         else:
             messages = self.messages
         choices = np.array([agent.make_decision(obs, messages, epsilon) for agent in self.Agents[self.ind]])
-        choices[self.ind] = choices[np.arange(self.cfg.players)]
+        choices[self.ind] = choices[np.arange(self.cfg.common.players)]
         if self.eval:
             for a, choice in enumerate(choices):
                 self.AM[a, choice[0]] += 1
@@ -132,14 +130,14 @@ class Orchestrator:
         if directory is not None:
             plt.savefig(f'{directory}/action_matrix.png')
 
-        if self.cfg.use_negotiation:
+        if self.cfg.negotiation.use:
             fig, ax = plt.subplots(1, self.negotiation_steps, figsize=(16, 9))
-            labels = np.arange(1, self.cfg.message_space + 1).tolist() + ['empty']
+            labels = np.arange(1, self.cfg.negotiation.space + 1).tolist() + ['empty']
             width = 0.2
-            locations = np.arange(self.cfg.message_space + 1)
-            player_loc = np.linspace(-width, width, self.cfg.players)
+            locations = np.arange(self.cfg.negotiation.space + 1)
+            player_loc = np.linspace(-width, width, self.cfg.common.players)
             for step in range(self.negotiation_steps):
-                for i in range(self.cfg.players):
+                for i in range(self.cfg.common.players):
                     ax[step].bar(locations + player_loc[i], self.messages_distr[i, step], width,
                                  label=self.Agents[i].get_label())
                 ax[step].set_ylabel('message count', fontsize=16)
@@ -154,20 +152,20 @@ class Orchestrator:
             if directory is not None:
                 plt.savefig(f'{directory}/messages.png')
 
-        if self.cfg.use_embeddings:
+        if self.cfg.embeddings.use:
             fig, ax = plt.subplots(1, 1, figsize=(16, 9))
             ax.set_title('embeddings PCA', fontsize=24)
             embeddings = []
             for agent in self.Agents:
                 embeddings.append(agent.embeddings.data)
-            embeddings = torch.stack(embeddings).reshape(-1, self.cfg.embedding_space)
+            embeddings = torch.stack(embeddings).reshape(-1, self.cfg.embeddings.space)
             pca = PCA(n_components=2)
             embeddings = pca.fit_transform(embeddings.detach().numpy())
-            embeddings = embeddings.reshape(self.cfg.players, self.cfg.players, 2)
+            embeddings = embeddings.reshape(self.cfg.common.players, self.cfg.common.players, 2)
             for i, agent in enumerate(self.Agents):
                 ax.scatter(embeddings[i, :, 0], embeddings[i, :, 1], label=agent.get_label(), s=150)
                 for agent, emb in zip(self.Agents, embeddings[i]):
-                    ax.annotate(f'{agent.id + 1}', emb + np.array([0, 0.075]), fontsize=14, ha='center')
+                    ax.annotate(f'{agent.id + 1}', emb + np.array([0, 0.1]), fontsize=14, ha='center')
             ax.legend()
             fig.tight_layout()
             if directory is not None:

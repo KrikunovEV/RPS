@@ -6,17 +6,76 @@ class NegotiationModel(nn.Module):
 
     def __init__(self, obs_space: int, cfg):
         super(NegotiationModel, self).__init__()
-        obs_space = obs_space * cfg.players + (cfg.message_space + 1) * cfg.players
+        self.cfg = cfg
+
+        if not cfg.common.use_obs:
+            obs_space = 0
+
+        if cfg.negotiation.use:
+            obs_space += cfg.negotiation.space + 1
+
+        if cfg.embeddings.use:
+            obs_space += cfg.embeddings.space
+
+        obs_space *= cfg.common.players
+
         self.linear = nn.Sequential(
             nn.Linear(obs_space, obs_space // 2),
             nn.LeakyReLU()
         )
-        self.policy = nn.Linear(obs_space // 2, cfg.message_space)
+        self.policy = nn.Linear(obs_space // 2, cfg.negotiation.space)
         self.V = nn.Linear(obs_space // 2, 1)
 
-    def forward(self, obs):
-        obs = self.linear(obs)
+    def forward(self, obs, messages, embeddings):
+        if not self.cfg.common.use_obs:
+            obs = torch.empty((0,))
+
+        if self.cfg.negotiation.use:
+            obs = torch.cat((obs, messages), dim=1)
+
+        if self.cfg.embeddings.use:
+            obs = torch.cat((obs, embeddings), dim=1)
+
+        obs = self.linear(obs.reshape(-1))
         return self.policy(obs), self.V(obs)
+
+
+class SiamMLPModel(nn.Module):
+
+    def __init__(self, obs_space: int, action_space: int, cfg):
+        super(SiamMLPModel, self).__init__()
+        self.cfg = cfg
+
+        if not cfg.common.use_obs:
+            obs_space = 0
+
+        if cfg.negotiation.use:
+            obs_space += cfg.negotiation.space + 1
+
+        if cfg.embeddings.use:
+            obs_space += cfg.embeddings.space
+
+        self.policies = nn.Sequential(
+            nn.Linear(obs_space, obs_space // 2),
+            nn.LeakyReLU(),
+            nn.Linear(obs_space // 2, 2),
+        )
+
+        self.V = nn.Linear(2 * action_space, 1)
+
+    def forward(self, obs, messages, embeddings):
+        if not self.cfg.common.use_obs:
+            obs = torch.empty((0,))
+
+        if self.cfg.negotiation.use:
+            obs = torch.cat((obs, messages), dim=1)
+
+        if self.cfg.embeddings.use:
+            obs = torch.cat((obs, embeddings), dim=1)
+
+        actions = self.policies(obs).reshape(-1)
+
+        return actions[::2], actions[1::2], self.V(actions)
 
 
 class SiamRNNModel(nn.Module):
@@ -52,41 +111,6 @@ class SiamRNNModel(nn.Module):
             actions.append(self.policies(h[0]))
 
         actions = torch.cat(actions)
-        return actions[::2], actions[1::2], self.V(actions), None
-
-
-class SiamMLPModel(nn.Module):
-
-    def __init__(self, obs_space: int, action_space: int, cfg):
-        super(SiamMLPModel, self).__init__()
-        self.cfg = cfg
-
-        if cfg.use_negotiation:
-            obs_space += cfg.message_space + 1
-
-        if cfg.use_embeddings:
-            obs_space += cfg.embedding_space
-
-        self.policies = nn.Sequential(
-            nn.Linear(obs_space, obs_space // 2),
-            nn.LeakyReLU(),
-            nn.Linear(obs_space // 2, 2),
-        )
-
-        self.V = nn.Linear(2 * action_space, 1)
-
-    def get_h(self):
-        return None
-
-    def forward(self, obs, messages, embeddings, h):
-        if self.cfg.use_negotiation:
-            obs = torch.cat((obs, messages), dim=1)
-
-        if self.cfg.use_embeddings:
-            obs = torch.cat((obs, embeddings), dim=1)
-
-        actions = self.policies(obs).reshape(-1)
-
         return actions[::2], actions[1::2], self.V(actions), None
 
 
@@ -210,28 +234,3 @@ class BaselineMLPModel(nn.Module):
 
         obs = self.linear(obs)
         return self.a_policy(obs), self.d_policy(obs), self.V(obs), None
-
-
-class DecisionModel(nn.Module):
-
-    def __init__(self, obs_space: int, action_space: int, cfg, model_type):
-        super(DecisionModel, self).__init__()
-
-        if model_type == cfg.ModelType.baseline_mlp:
-            self.model = BaselineMLPModel(obs_space, action_space, cfg)
-        elif model_type == cfg.ModelType.baseline_rnn:
-            self.model = BaselineRNNModel(obs_space, action_space, cfg)
-        elif model_type == cfg.ModelType.attention:
-            self.model = AttentionModel(obs_space, action_space, cfg)
-        elif model_type == cfg.ModelType.siam_mlp:
-            self.model = SiamMLPModel(obs_space, action_space, cfg)
-        elif model_type == cfg.ModelType.siam_rnn:
-            self.model = SiamRNNModel(obs_space, action_space, cfg)
-        else:
-            raise Exception(f'Model type {model_type.name} has no implementation')
-
-    def get_h(self):
-        return self.model.get_h()
-
-    def forward(self, obs, messages, embeddings, h):
-        return self.model(obs, messages, embeddings, h)

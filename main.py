@@ -1,64 +1,59 @@
 from OffendAndDefend import OADEnvironment
 from AgentOrchestrator import Orchestrator
-import config as cfg
+import utility as util
 import time
 import os
 
 
-def run(epoch, model_type: cfg.ModelType, debug: bool = False):
+def run(cfg, game, model_type: util.ModelType, debug: bool = False):
 
-    if model_type == cfg.ModelType.attention and not cfg.use_negotiation and not cfg.use_embeddings:
-        raise Exception(f'You can not use attention model if negotiation ({cfg.use_negotiation}) and embedding '
-                        f'({cfg.use_embeddings}) are disabled both.')
-
-    if isinstance(cfg.negotiation_steps, list) and len(cfg.negotiation_steps) != cfg.players:
-        raise Exception('cfg.negotiation_steps is a list but len not equal to number of players.')
-
-    env = OADEnvironment(players=cfg.players, debug=debug)
+    env = OADEnvironment(players=cfg.common.players, debug=debug)
     orchestrator = Orchestrator(obs_space=env.get_obs_space(),
                                 action_space=env.get_action_space(),
                                 model_type=model_type, cfg=cfg)
 
     orchestrator.set_eval(eval=False)
-    epsilon = cfg.epsilon_upper
+    epsilon = cfg.train.epsilon_upper
     obs = None
-    for episode in range(cfg.train_episodes):
+    for episode in range(cfg.train.episodes):
         if debug:
-            print(f'Epoch: {epoch}, train episode: {episode + 1}/{cfg.train_episodes}')
+            print('Game: ' + util.fg.warning + f'{game}' + util.fg.rs + ', train episode: ' +
+                  util.fg.warning + f'{episode + 1}/{cfg.train.episodes}' + util.fg.rs)
 
-        if episode % cfg.round_episodes == 0:
+        if episode % cfg.common.round_episodes == 0:
             obs = env.reset()
-            if cfg.is_require_reset(model_type):
-                orchestrator.reset_h()
+            if util.is_require_reset(model_type):
+                orchestrator.reset_memory()
 
-        if cfg.shuffle:
+        if cfg.common.shuffle:
             obs = orchestrator.shuffle(obs)
 
-        if cfg.use_negotiation:
+        if cfg.negotiation.use:
             orchestrator.negotiation(obs)
 
         choices = orchestrator.decisions(obs, epsilon)
         obs, rewards = env.play(choices)
         orchestrator.rewarding(rewards)
         orchestrator.train()
-        epsilon -= cfg.epsilon_step
+        epsilon -= cfg.train.epsilon_step
 
     orchestrator.set_eval(eval=True)
     obs = None
     result = {'1 & 2 vs 3': 0, '2 & 3 vs 1': 0, '1 & 3 vs 2': 0}
-    for episode in range(cfg.test_episodes):
+    for episode in range(cfg.test.episodes):
         if debug:
-            print(f'Epoch: {epoch}, test episode: {episode + 1}/{cfg.test_episodes}')
+            print('Game: ' + util.fg.warning + f'{game}' + util.fg.rs + ', set episode: ' +
+                  util.fg.warning + f'{episode + 1}/{cfg.train.episodes}' + util.fg.rs)
 
-        if episode % cfg.round_episodes == 0:
+        if episode % cfg.common.round_episodes == 0:
             obs = env.reset()
-            if cfg.is_require_reset(model_type):
-                orchestrator.reset_h()
+            if util.is_require_reset(model_type):
+                orchestrator.reset_memory()
 
-        if cfg.shuffle:
+        if cfg.common.shuffle:
             obs = orchestrator.shuffle(obs)
 
-        if cfg.use_negotiation:
+        if cfg.negotiation.use:
             orchestrator.negotiation(obs)
 
         choices = orchestrator.decisions(obs, epsilon)
@@ -72,25 +67,28 @@ def run(epoch, model_type: cfg.ModelType, debug: bool = False):
         elif choices[0][0] == 2 and choices[0][1] == 2 and choices[1][0] == 2 and choices[1][1] == 2:
             result['1 & 2 vs 3'] += 1
 
-    if cfg.logging == cfg.LogType.show:
+    if cfg.common.logging == util.LogType.show:
         orchestrator.plot_metrics(directory=None)
-    elif cfg.logging == cfg.LogType.local:
-        directory = os.path.join(cfg.metric_directory, model_type.name, cfg.experiment_name, f'epoch_{epoch}')
+    elif cfg.common.logging == util.LogType.local or cfg.common.logging == util.LogType.local_randomly:
+        if cfg.common.logging == util.LogType.local_randomly:
+            raise Exception(util.ef.bold + 'LogType.local_randomly' + util.ef.rs + ' not implemented yet')
+        directory = os.path.join(cfg.common.experiment_dir, cfg.common.experiment_name, f'{game}')
         os.makedirs(directory, exist_ok=True)
         orchestrator.plot_metrics(directory=directory)
-    elif cfg.logging == cfg.LogType.mlflow:
-        print(f'Log type mlflow not implemented. Logs are not saved.')
+    elif cfg.common.logging == util.LogType.mlflow:
+        raise Exception(util.ef.bold + 'LogType.mlflow' + util.ef.rs + ' not implemented yet')
 
     return result
 
 
 if __name__ == '__main__':
-    cfg.print_config()
+    cfg = util.load_config('config/default.yaml')
 
     start_time = time.time()
-    coops = run('main', cfg.ModelType.siam_mlp, debug=True)
+    coops = run(cfg, 'test', util.ModelType.siam_mlp, debug=True)
+    lasted_time = time.time() - start_time
+    print('The experiment lasts ' + util.fg.warning + f'{lasted_time // 60}m {lasted_time % 60}s' + util.fg.rs)
 
-    print(f'Time: {time.time() - start_time}')
     print('Coops:')
     for (key, value) in coops.items():
-        print(f'{key}: {value}/{cfg.test_episodes} ({value / cfg.test_episodes})')
+        print(f'{key}: {value}/{cfg.test.episodes} ({value / cfg.test.episodes})')
