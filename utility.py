@@ -2,6 +2,10 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 import yaml
+import numpy as np
+import seaborn as sn
+from sklearn.decomposition import PCA
+from random import randint
 from easydict import EasyDict
 from enum import Enum
 from sty import fg, ef, Style, RgbFg
@@ -124,6 +128,158 @@ def stat_plot(cfg: EasyDict):
         ax[i].set_ylim(0., 800.)
 
     plt.show()
+
+
+def print_game_stats(model_type: ModelType, metrics_dict: dict, cfg: EasyDict, pname: str = '[C1]'):
+    text = '\n' + fg.category + f'{pname}' + fg.rs
+    text += ': the game '
+    text += fg.category + metrics_dict['game'] + fg.rs
+    text += ' lasts '
+    text += fg.category + f'{int(metrics_dict["time"] // 60)}m {round(metrics_dict["time"] % 60)}s' + fg.rs
+    text += ' using '
+    text += fg.category + model_type.name + fg.rs
+    text += ' model with pair coops:'
+    for (pair, coops) in metrics_dict['pair_coops'].items():
+        text += '\n' + fg.parameter + f'{pair}' + fg.rs
+        text += f': {coops}/{cfg.test.episodes} ' + ef.bold + f'({coops / cfg.test.episodes})' + ef.rs
+    print(text)
+
+
+def log_stats(model_pair_coops: dict, model_game_counter: dict, stat_directory, cfg: EasyDict):
+    text = '\nLog stats'
+    for model_type in cfg.mp.model_list:
+        name = model_type.name
+        text += '\n' + fg.category + f'{name}' + fg.rs + ':'
+
+        for (pair, coops) in model_pair_coops[name].items():
+            coops = np.sum(coops)
+            total_coops = model_game_counter[name] * cfg.test.episodes
+            text += '\n' + fg.parameter + f'{pair}' + fg.rs
+            text += f': {coops}/{total_coops} ' + ef.bold + f'({coops / total_coops})' + ef.rs
+
+    print(text)
+    with open(os.path.join(stat_directory, cfg.mp.stat_file), 'wb') as f:
+        pickle.dump({'model_pair_coops': model_pair_coops, 'model_game_counter': model_game_counter}, f)
+
+
+def log_metrics(metrics_dict: dict, cfg: EasyDict):
+    if cfg.common.logging == LogType.show:
+        visualize_metrics(metrics_dict, cfg, directory=None)
+
+    elif cfg.common.logging == LogType.local or cfg.common.logging == LogType.local_randomly:
+        if cfg.common.logging == LogType.local_randomly:
+            if randint(0, 4) != 0:
+                pass
+
+        directory = os.path.join(cfg.common.experiment_dir, cfg.common.experiment_name, f'{metrics_dict["game"]}')
+        os.makedirs(directory, exist_ok=True)
+        visualize_metrics(metrics_dict, cfg, directory=directory)
+
+    elif cfg.common.logging == LogType.mlflow:
+        raise Exception(ef.bold + 'LogType.mlflow' + ef.rs + ' not implemented yet')
+
+
+def visualize_metrics(metrics_dict: dict, cfg: EasyDict, directory: str = None):
+    plt.close('all')
+
+    agent_labels = metrics_dict['agent_labels_list']
+    agent_id_labels = [int(label[:2]) for label in agent_labels]  # get only id, consider 0 <= id <= 99
+
+    # LOSS
+    fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+    ax.set_title('A2C loss', fontsize=18)
+    ax.set_xlabel('# of episode', fontsize=16)
+    ax.set_ylabel('loss value', fontsize=16)
+    ax.tick_params(labelsize=13)
+    for loss, label in zip(metrics_dict['loss_list'], agent_labels):
+        plt.plot(loss, label=label)
+    ax.legend()
+    fig.tight_layout()
+    if directory is not None:
+        plt.savefig(f'{directory}/a2c_loss.png')
+
+    # CUMULATIVE REWARD
+    fig, ax = plt.subplots(1, 2, figsize=(16, 9))
+    ax[0].set_title(f'Cumulative reward on train', fontsize=18)
+    ax[0].set_xlabel('# of episode', fontsize=16)
+    ax[0].set_ylabel('reward value', fontsize=16)
+    ax[0].tick_params(labelsize=13)
+    ax[1].set_title(f'Cumulative reward on test', fontsize=18)
+    ax[1].set_xlabel('# of episode', fontsize=16)
+    ax[1].set_ylabel('reward value', fontsize=16)
+    ax[1].tick_params(labelsize=13)
+    for reward, reward_eval, label in zip(metrics_dict['reward_list'], metrics_dict['reward_eval_list'], agent_labels):
+        ax[0].plot(np.cumsum(reward), label=label)
+        ax[1].plot(np.cumsum(reward_eval), label=label)
+    ax[0].legend()
+    ax[1].legend()
+    fig.tight_layout()
+    if directory is not None:
+        plt.savefig(f'{directory}/rewarding.png')
+
+    # ACTIONS MATRIX
+    fig, ax = plt.subplots(1, 2, figsize=(16, 9))
+    ax[0].set_title('Offends', fontsize=18)
+    ax[0].tick_params(labelsize=13)
+    ax[1].set_title('Defends', fontsize=18)
+    ax[1].tick_params(labelsize=13)
+    AM = np.stack(metrics_dict['attacks_list'])
+    DM = np.stack(metrics_dict['defends_list'])
+    sn.heatmap(AM, annot=True, cmap='Reds', xticklabels=agent_id_labels, yticklabels=agent_labels, ax=ax[0],
+               square=True, cbar=False, fmt='g', annot_kws={"size": 15})
+    sn.heatmap(DM, annot=True, cmap='Blues', xticklabels=agent_id_labels, yticklabels=agent_labels, ax=ax[1],
+               square=True, cbar=False, fmt='g', annot_kws={"size": 15})
+    for (a, d) in zip(ax[0].yaxis.get_ticklabels(), ax[1].yaxis.get_ticklabels()):
+        a.set_verticalalignment('center')
+        a.set_rotation('horizontal')
+        d.set_verticalalignment('center')
+        d.set_rotation('horizontal')
+    fig.tight_layout()
+    if directory is not None:
+        plt.savefig(f'{directory}/action_matrix.png')
+
+    if cfg.negotiation.use:
+        steps = np.max(cfg.negotiation.steps)
+        categories = cfg.negotiation.space + 1
+        fig, ax = plt.subplots(1, steps, figsize=(16, 9))
+        xlabels = np.arange(1, categories).tolist() + ['empty']
+        locations = np.arange(categories)
+        player_loc = np.linspace(-0.4, 0.4, cfg.common.players)
+        width = 0.8 / cfg.common.players
+        messages = metrics_dict['messages_list']
+        for step in range(steps):
+            for i in range(cfg.common.players):
+                if step < cfg.negotiation.steps[i]:
+                    ax[step].bar(locations + player_loc[i], messages[i][step], width, label=agent_labels[i])
+            ax[step].set_ylabel('message count', fontsize=16)
+            ax[step].set_xlabel('message category', fontsize=16)
+            ax[step].set_title(f'Negotiation step {step + 1}', fontsize=18)
+            ax[step].set_xticks(locations)
+            ax[step].set_xticklabels(xlabels)
+            ax[step].tick_params(labelsize=13)
+            ax[step].legend()
+        fig.tight_layout()
+        if directory is not None:
+            plt.savefig(f'{directory}/messages.png')
+
+    if cfg.embeddings.use:
+        embeddings = metrics_dict['embeddings_list']
+        for p in range(cfg.common.players):
+            fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+            ax.set_title(f'Player {p + 1}: embeddings ({cfg.embeddings.space}) PCA', fontsize=18)
+            p_embeddings = np.stack(embeddings[p].data.detach().numpy())
+            pca = PCA(n_components=2)
+            p_embeddings = pca.fit_transform(p_embeddings)
+            for i, (emb, label, ann_label) in enumerate(zip(p_embeddings, agent_labels, agent_id_labels)):
+                ax.scatter(emb[0], emb[1], label=label, s=150)
+                ax.annotate(ann_label, emb + np.array([0, 0.1]), fontsize=14, ha='center')
+            ax.legend()
+            fig.tight_layout()
+            if directory is not None:
+                plt.savefig(f'{directory}/p{p + 1}_embeddings.png')
+
+    if directory is None:
+        plt.show()
 
 
 if __name__ == '__main__':

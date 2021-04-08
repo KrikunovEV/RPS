@@ -1,101 +1,97 @@
-from main import run, cfg
+import utility as util
 import time
 import multiprocessing as mp
 import os
 import pickle
 import numpy as np
+from main import run
 
 
 class Task:
-    def __init__(self, epoch: int, model_type: cfg.ModelType, done: bool):
-        self.epoch = epoch
+    def __init__(self, game, model_type, done: bool):
+        self.game = game
         self.model_type = model_type
         self.done = done
 
 
 class Result:
-    def __init__(self, coops, done: bool, task: Task):
-        self.coops = coops
+    def __init__(self, metrics_dict, done: bool, task: Task):
+        self.metrics_dict = metrics_dict
         self.done = done
         self.task = task
 
 
-def process_work(p_name: str, test_episodes: int, task_q: mp.Queue, result_q: mp.Queue):
+def process_work(p_name: str, task_q: mp.Queue, result_q: mp.Queue, cfg):
     tasks_done = 0
     while True:
         task = task_q.get()
 
         if task.done:
-            print(f'{p_name} done {tasks_done} tasks.')
-            result_q.put(Result(coops=None, done=True, task=task))
+            print('\n' + util.fg.category + f'{p_name}' + util.fg.rs + ' done ' +
+                  util.fg.parameter + f'{tasks_done}' + util.fg.rs + ' tasks.')
+            result_q.put(Result(metrics_dict=None, done=True, task=task))
             break
 
-        coops = run(task.epoch, task.model_type)
-        result_q.put(Result(coops=coops, done=False, task=task))
+        metrics_dict = run(cfg, task.game, task.model_type)
+        result_q.put(Result(metrics_dict=metrics_dict, done=False, task=task))
         tasks_done += 1
-        print(f'{p_name}: model {task.model_type.name}, epoch {task.epoch}, coops {coops} / {test_episodes}')
+        util.print_game_stats(task.model_type, metrics_dict, cfg, p_name)
 
 
 if __name__ == '__main__':
-    cfg.print_config()
+    cfg = util.load_config('config/default.yaml')
 
     manager = mp.Manager()
     task_q = manager.Queue()
     result_q = manager.Queue()
 
+    # create processes
     processes = []
-    for process in range(cfg.cores):
-        process_name = f'[C{process}]'
-        args = (process_name, cfg.test_episodes, task_q, result_q)
-        processes.append(mp.Process(target=process_work, args=args))
+    for process in range(cfg.mp.cores):
+        processes.append(mp.Process(target=process_work, args=(f'[C{process + 1}]', task_q, result_q, cfg)))
         processes[-1].start()
 
-    start_time = time.time()
+    # fill queue by tasks
+    for game in range(cfg.mp.games):
+        for model_type in cfg.mp.model_list:
+            task_q.put(Task(game=str(game), model_type=model_type, done=False))
+    for _ in range(len(processes)):
+        task_q.put(Task(game=None, model_type=None, done=True))
 
-    for epoch in range(cfg.epochs):
-        for model_type in cfg.mp_models:
-            task_q.put(Task(epoch=epoch, model_type=model_type, done=False))
+    # create mp directory and stats
+    stat_dir = os.path.join(cfg.common.experiment_dir, cfg.common.experiment_name, 'mp_stat')
+    os.makedirs(stat_dir, exist_ok=True)
 
-    for core in range(cfg.cores):
-        task_q.put(Task(epoch=None, model_type=None, done=True))
-
-    model_coops = dict(zip([model_type.name for model_type in cfg.mp_models],
-                           [{'1 & 2 vs 3': [], '2 & 3 vs 1': [], '1 & 3 vs 2': []} for _ in cfg.mp_models]))
-    epoch_counter = dict(zip([model_type.name for model_type in cfg.mp_models], [0 for _ in cfg.mp_models]))
-
-    # need to fix it!!!!!! model_type undefined !!!!!
-    directory_statistics = os.path.join(cfg.metric_directory, model_type.name, cfg.experiment_name, 'epoch')
-    os.makedirs(directory_statistics, exist_ok=True)
+    spent_time = 0
+    model_pair_coops = dict()
+    model_game_counter = dict()
+    for model_type in cfg.mp.model_list:
+        model_game_counter[model_type.name] = 0
+        model_pair_coops[model_type.name] = dict()
+        for p1 in range(cfg.common.players - 1):
+            for p2 in range(p1 + 1, cfg.common.players):
+                model_pair_coops[model_type.name][f'{p1 + 1}&{p2 + 1}'] = []
 
     processes_done = 0
     total_epochs = 0
-    while processes_done != cfg.cores:
+    while processes_done != cfg.mp.cores:
 
         result = result_q.get()
         if result.done:
             processes_done += 1
             continue
 
-        for (key, value) in result.coops.items():
-            model_coops[result.task.model_type.name][key].append(value)
-        epoch_counter[result.task.model_type.name] += 1
+        # log metrics and stat data
+        util.log_metrics(result.metrics_dict, cfg)
+        spent_time += result.metrics_dict['time']
+
+        for (pair, coops) in result.metrics_dict['pair_coops'].items():
+            model_pair_coops[result.task.model_type.name][pair].append(coops)
+        model_game_counter[result.task.model_type.name] += 1
+
         total_epochs += 1
         if total_epochs % 10 == 0:
-            for model_type in cfg.mp_models:
-                name = model_type.name
-                print(f'{name} coops:')
-                for (key, value) in model_coops[name].items():
-                    print(f'{key}: {np.sum(value)}/{epoch_counter[name] * cfg.test_episodes} '
-                          f'({np.sum(value) / (epoch_counter[name] * cfg.test_episodes)})')
-            with open(os.path.join(directory_statistics, cfg.pickle_file), 'wb') as f:
-                pickle.dump({'coops_dict': model_coops, 'epoch_counter_dict': epoch_counter}, f)
+            util.log_stats(model_pair_coops, model_game_counter, stat_dir, cfg)
 
-    print(f'Time: {time.time() - start_time} seconds where {(time.time() - start_time) // 60} minutes')
-    for model_type in cfg.mp_models:
-        name = model_type.name
-        print(f'\nModel name: {name}')
-        print(f'Epochs: {epoch_counter[name]} (should be {cfg.epochs})')
-        print('Coops:')
-        for (key, value) in model_coops[name].items():
-            print(f'{key}: {np.sum(value)}/{epoch_counter[name] * cfg.test_episodes} '
-                  f'({np.sum(value) / (epoch_counter[name] * cfg.test_episodes)})')
+    util.log_stats(model_pair_coops, model_game_counter, stat_dir, cfg)
+    print('Spent time overall ' + util.fg.warning + f'{int(spent_time // 60)}m {round(spent_time / 60)}s' + util.fg.rs)

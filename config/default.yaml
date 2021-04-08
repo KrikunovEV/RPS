@@ -1,6 +1,6 @@
 mp:
-  cores: 7
-  epochs: 1000
+  cores: 6
+  games: 1000
   stat_file: stat.pickle
   model_list: [siam_mlp]  # possible: siam_mlp
 common:

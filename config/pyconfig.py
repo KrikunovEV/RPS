@@ -6,7 +6,7 @@ config = EasyDict()
 
 config.mp = EasyDict()
 config.mp.cores = 7
-config.mp.epochs = 1000
+config.mp.games = 1000
 config.mp.stat_file = 'stat.pickle'
 config.mp.model_list = ['siam_mlp']
 

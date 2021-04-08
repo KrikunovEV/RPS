@@ -39,15 +39,20 @@ class Agent:
         self.entropy = []
         self.reward = []
 
+        # only in train
         self.loss_metric = []
         self.reward_metric = []
+        # only in eval mode
         self.reward_eval_metric = []
+        self.attacks_metric = np.zeros(cfg.common.players, dtype=np.int)
+        self.defends_metric = np.zeros(cfg.common.players, dtype=np.int)
+        self.messages_metric = np.zeros((negotiation_steps, cfg.negotiation.space + 1), dtype=np.int)
 
     def set_eval(self, eval: bool):
         self.eval = eval
 
     def reset_memory(self):
-        raise Exception('There is no any model yet for resetting its temporal hidden memory')
+        raise Exception('There is no any model yet for resetting its hidden memory')
 
     def negotiate(self, obs, messages, step):
         message = torch.zeros(self.cfg.negotiation.space + 1)
@@ -65,6 +70,9 @@ class Agent:
             message[self.negotiate_action] = 1.
         else:
             message[self.negotiate_action] = 1.
+
+        if self.eval and step < self.negotiation_steps:
+            self.messages_metric[step] += message.numpy().astype(np.int)
 
         return message
 
@@ -94,6 +102,9 @@ class Agent:
             a_entropy = (a_policy * torch.log_softmax(a_logits, dim=-1)).sum()
             d_entropy = (d_policy * torch.log_softmax(d_logits, dim=-1)).sum()
             self.entropy.append(a_entropy + d_entropy)
+        else:
+            self.attacks_metric[a_action] += 1
+            self.defends_metric[d_action] += 1
 
         return [a_action, d_action]
 
