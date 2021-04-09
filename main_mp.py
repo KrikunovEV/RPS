@@ -1,9 +1,8 @@
 import utility as util
-import time
 import multiprocessing as mp
 import os
-import pickle
 import numpy as np
+import torch
 from main import run
 
 
@@ -22,6 +21,14 @@ class Result:
 
 
 def process_work(p_name: str, task_q: mp.Queue, result_q: mp.Queue, cfg):
+    seed = np.abs(p_name.__hash__()) % 4294967296  # 2**32
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    print('\n' + util.fg.category + f'{p_name}' + util.fg.rs + ' seed: ' + util.fg.parameter + f'{seed}' + util.fg.rs +
+          ', np initial state: ' + util.fg.warning + f'{np.random.get_state()[1][0]}' + util.fg.rs +
+          ', torch initial state: ' + util.fg.warning + f'{torch.get_rng_state()[0]}' + util.fg.rs)
+
     tasks_done = 0
     while True:
         task = task_q.get()

@@ -69,7 +69,7 @@ if __name__ == '__main__':
     cfg = util.load_config('config/default.yaml')
     model_type = util.ModelType.siam_mlp
 
-    metrics_dict = run(cfg, 'test', model_type, debug=True)
+    metrics_dict = run(cfg, 'main', model_type, debug=True)
 
     util.log_metrics(metrics_dict, cfg)
     util.print_game_stats(model_type, metrics_dict, cfg)
