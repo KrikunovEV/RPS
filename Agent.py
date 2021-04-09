@@ -54,10 +54,14 @@ class Agent:
     def reset_memory(self):
         raise Exception('There is no any model yet for resetting its hidden memory')
 
-    def negotiate(self, obs, messages, step, epsilon):
+    def negotiate(self, obs, step, epsilon):
         message = torch.zeros(self.cfg.negotiation.space + 1)
+
         if self.negotiable and step < self.negotiation_steps:
-            negotiate_logits, negotiate_V = self.negot_model[step](obs, messages, self.embeddings)
+            if self.cfg.embeddings.use:
+                obs = torch.cat((obs, self.embeddings), dim=1)
+
+            negotiate_logits, negotiate_V = self.negot_model[step](obs)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
             strategy = np.random.choice(['random', 'policy'], p=[epsilon, 1. - epsilon])
             if not self.eval and strategy == 'random':
@@ -75,21 +79,22 @@ class Agent:
                 self.reward.append(0)
                 self.value.append(negotiate_V)
 
-            message[self.negotiate_action] = 1.
-        else:
-            message[self.negotiate_action] = 1.
+        message[self.negotiate_action] = 1.
 
         if self.eval and step < self.negotiation_steps:
-            self.messages_metric[step] += message.numpy().astype(np.int)
+            self.messages_metric[step, self.negotiate_action] += 1
 
         return message
 
-    def make_decision(self, obs, messages, epsilon):
-        if not self.negotiable and not self.cfg.negotiation.is_channel_open:
-            messages = torch.zeros_like(messages)
-            messages[:, -1] = 1.  # empty messages
+    def make_decision(self, obs, epsilon):
+        if self.cfg.negotiation.use and not self.negotiable and not self.cfg.negotiation.is_channel_open:
+            obs[:, -(self.cfg.negotiation.space + 1):-1] = 0.
+            obs[:, -1] = 1.
 
-        a_logits, d_logits, V = self.model(obs, messages, self.embeddings)
+        if self.cfg.embeddings.use:
+            obs = torch.cat((obs, self.embeddings), dim=1)
+
+        a_logits, d_logits, V = self.model(obs)
 
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)

@@ -7,16 +7,6 @@ class NegotiationModel(nn.Module):
     def __init__(self, obs_space: int, cfg):
         super(NegotiationModel, self).__init__()
         self.cfg = cfg
-
-        if not cfg.common.use_obs:
-            obs_space = 0
-
-        if cfg.negotiation.use:
-            obs_space += cfg.negotiation.space + 1
-
-        if cfg.embeddings.use:
-            obs_space += cfg.embeddings.space
-
         obs_space *= cfg.common.players
 
         self.linear = nn.Sequential(
@@ -26,16 +16,7 @@ class NegotiationModel(nn.Module):
         self.policy = nn.Linear(obs_space // 2, cfg.negotiation.space)
         self.V = nn.Linear(obs_space // 2, 1)
 
-    def forward(self, obs, messages, embeddings):
-        if not self.cfg.common.use_obs:
-            obs = torch.empty((0,))
-
-        if self.cfg.negotiation.use:
-            obs = torch.cat((obs, messages), dim=1)
-
-        if self.cfg.embeddings.use:
-            obs = torch.cat((obs, embeddings), dim=1)
-
+    def forward(self, obs):
         obs = self.linear(obs.reshape(-1))
         return self.policy(obs), self.V(obs)
 
@@ -46,35 +27,15 @@ class SiamMLPModel(nn.Module):
         super(SiamMLPModel, self).__init__()
         self.cfg = cfg
 
-        if not cfg.common.use_obs:
-            obs_space = 0
-
-        if cfg.negotiation.use:
-            obs_space += cfg.negotiation.space + 1
-
-        if cfg.embeddings.use:
-            obs_space += cfg.embeddings.space
-
         self.policies = nn.Sequential(
             nn.Linear(obs_space, obs_space // 2),
             nn.LeakyReLU(),
             nn.Linear(obs_space // 2, 2),
         )
-
         self.V = nn.Linear(2 * action_space, 1)
 
-    def forward(self, obs, messages, embeddings):
-        if not self.cfg.common.use_obs:
-            obs = torch.empty((0,))
-
-        if self.cfg.negotiation.use:
-            obs = torch.cat((obs, messages), dim=1)
-
-        if self.cfg.embeddings.use:
-            obs = torch.cat((obs, embeddings), dim=1)
-
+    def forward(self, obs):
         actions = self.policies(obs).reshape(-1)
-
         return actions[::2], actions[1::2], self.V(actions)
 
 

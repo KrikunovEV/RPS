@@ -11,6 +11,14 @@ class Orchestrator:
         self.ind = np.arange(cfg.common.players)
         self.eval = False
         self.negotiation_steps = np.max(cfg.negotiation.steps)
+
+        if not cfg.common.use_obs:
+            obs_space = 0
+        if cfg.negotiation.use:
+            obs_space += cfg.negotiation.space + 1
+        if cfg.embeddings.use:
+            obs_space += cfg.embeddings.space
+
         self.Agents = np.array([Agent(id,
                                       obs_space,
                                       action_space,
@@ -44,19 +52,26 @@ class Orchestrator:
             tmp[-1] = 1.
             messages.append(tmp)
 
-        obs = torch.from_numpy(obs)
+        if self.cfg.common.use_obs:
+            obs = torch.from_numpy(obs)
+        else:
+            obs = torch.empty((0,))
+
         for step in range(self.negotiation_steps):
-            messages = torch.stack(messages)
-            messages = [agent.negotiate(obs, messages, step, epsilon) for agent in self.Agents[self.ind]]
+            obs_negot = torch.cat((obs, torch.stack(messages)), dim=1)
+            messages = [agent.negotiate(obs_negot, step, epsilon) for agent in self.Agents[self.ind]]
         self.messages = messages
 
     def decisions(self, obs, epsilon):
-        obs = torch.from_numpy(obs)
-        if self.messages is not None:
-            messages = torch.stack(self.messages)
+        if self.cfg.common.use_obs:
+            obs = torch.from_numpy(obs)
         else:
-            messages = self.messages
-        choices = np.array([agent.make_decision(obs, messages, epsilon) for agent in self.Agents[self.ind]])
+            obs = torch.empty((0,))
+
+        if self.cfg.negotiation.use:
+            obs = torch.cat((obs, torch.stack(self.messages)), dim=1)
+
+        choices = np.array([agent.make_decision(obs, epsilon) for agent in self.Agents[self.ind]])
         choices[self.ind] = choices[np.arange(self.cfg.common.players)]
 
         if self.eval:

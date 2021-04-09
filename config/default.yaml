@@ -14,7 +14,7 @@ common:
 train:
   do_backward: True  # use False to make agents non-trainable
   episodes: 3000
-  lr: 0.001
+  lr: 0.002
   gamma: 1.
   hidden_size: 32
   value_loss_penalize: 0.5
