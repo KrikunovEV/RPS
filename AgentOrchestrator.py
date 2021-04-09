@@ -37,7 +37,7 @@ class Orchestrator:
         for agent in self.Agents:
             agent.set_eval(eval)
 
-    def negotiation(self, obs):
+    def negotiation(self, obs, epsilon):
         messages = []
         for a in range(self.cfg.common.players):
             tmp = torch.zeros(self.cfg.negotiation.space + 1)
@@ -47,7 +47,7 @@ class Orchestrator:
         obs = torch.from_numpy(obs)
         for step in range(self.negotiation_steps):
             messages = torch.stack(messages)
-            messages = [agent.negotiate(obs, messages, step) for agent in self.Agents[self.ind]]
+            messages = [agent.negotiate(obs, messages, step, epsilon) for agent in self.Agents[self.ind]]
         self.messages = messages
 
     def decisions(self, obs, epsilon):

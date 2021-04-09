@@ -29,7 +29,7 @@ def run(cfg, game: str, model_type: util.ModelType, debug: bool = False):
             obs = orchestrator.shuffle(obs)
 
         if cfg.negotiation.use:
-            orchestrator.negotiation(obs)
+            orchestrator.negotiation(obs, epsilon)
 
         choices = orchestrator.decisions(obs, epsilon)
         obs, rewards = env.play(choices)
@@ -53,7 +53,7 @@ def run(cfg, game: str, model_type: util.ModelType, debug: bool = False):
             obs = orchestrator.shuffle(obs)
 
         if cfg.negotiation.use:
-            orchestrator.negotiation(obs)
+            orchestrator.negotiation(obs, epsilon)
 
         choices = orchestrator.decisions(obs, epsilon)
         obs, rewards = env.play(choices)

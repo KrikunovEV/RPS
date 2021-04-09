@@ -116,16 +116,17 @@ def is_require_reset(model_type: ModelType):
 
 
 def stat_plot(cfg: EasyDict):
-    file = os.path.join(cfg.common.experiment_dir, 'siam_mlp', 'embeddings_ones', 'epoch', cfg.mp.stat_file)
+    file = os.path.join(cfg.common.experiment_dir, cfg.common.experiment_name, 'mp_stat', cfg.mp.stat_file)
     with open(file, 'rb') as f:
-        model_coops = pickle.load(f)['coops_dict']['siam_mlp']
+        pair_coops = pickle.load(f)['model_pair_coops']['siam_mlp']
 
-    fig, ax = plt.subplots(1, 3)
+    fig, ax = plt.subplots(1, len(pair_coops))
     plt.suptitle(r'embeddings ~{1}$^{64}$')
-    for i, (key, value) in enumerate(model_coops.items()):
-        ax[i].set_title(key)
-        ax[i].hist(value, bins=5)
-        ax[i].set_ylim(0., 800.)
+    for i, (pair, coops) in enumerate(pair_coops.items()):
+        ax[i].set_title(pair)
+        ax[i].hist(coops, bins=10)
+        ax[i].set_ylim(0., 2000.)
+        ax[i].set_xlim(-10., 110.)
 
     plt.show()
 
@@ -283,4 +284,5 @@ def visualize_metrics(metrics_dict: dict, cfg: EasyDict, directory: str = None):
 
 
 if __name__ == '__main__':
-    load_config('config/default.yaml')
+    cfg = load_config('config/default.yaml')
+    stat_plot(cfg)

@@ -94,4 +94,6 @@ if __name__ == '__main__':
             util.log_stats(model_pair_coops, model_game_counter, stat_dir, cfg)
 
     util.log_stats(model_pair_coops, model_game_counter, stat_dir, cfg)
-    print('Spent time overall ' + util.fg.warning + f'{int(spent_time // 60)}m {round(spent_time / 60)}s' + util.fg.rs)
+    spent_time /= cfg.mp.cores
+    print('Spent time in mean for 1 core ' +
+          util.fg.warning + f'{int(spent_time // 60)}m {round(spent_time / 60)}s' + util.fg.rs)

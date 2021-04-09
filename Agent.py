@@ -54,15 +54,23 @@ class Agent:
     def reset_memory(self):
         raise Exception('There is no any model yet for resetting its hidden memory')
 
-    def negotiate(self, obs, messages, step):
+    def negotiate(self, obs, messages, step, epsilon):
         message = torch.zeros(self.cfg.negotiation.space + 1)
         if self.negotiable and step < self.negotiation_steps:
             negotiate_logits, negotiate_V = self.negot_model[step](obs, messages, self.embeddings)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
-            self.negotiate_action = np.random.choice(negotiate_policy.shape[0], p=negotiate_policy.detach().numpy())
+            strategy = np.random.choice(['random', 'policy'], p=[epsilon, 1. - epsilon])
+            if not self.eval and strategy == 'random':
+                self.negotiate_action = np.random.randint(negotiate_policy.shape[0])
+            else:
+                self.negotiate_action = np.random.choice(negotiate_policy.shape[0],
+                                                         p=negotiate_policy.detach().numpy())
 
             if not self.eval:
-                self.logs.append(torch.log(negotiate_policy[self.negotiate_action]))
+                if negotiate_policy[self.negotiate_action] < 0.00000001:
+                    self.logs.append(torch.log(negotiate_policy[self.negotiate_action] + 0.00000001))
+                else:
+                    self.logs.append(torch.log(negotiate_policy[self.negotiate_action]))
                 self.entropy.append((negotiate_policy * torch.log_softmax(negotiate_logits, dim=-1)).sum())
                 self.reward.append(0)
                 self.value.append(negotiate_V)
