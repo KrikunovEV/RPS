@@ -218,6 +218,27 @@ def visualize_metrics(metrics_dict: dict, cfg: EasyDict, directory: str = None):
     if directory is not None:
         plt.savefig(f'{directory}/rewarding.png')
 
+    # ELO
+    fig, ax = plt.subplots(1, 2, figsize=(16, 9))
+    ax[0].set_title(f'ELO on train', fontsize=18)
+    ax[0].set_xlabel('# of episode', fontsize=16)
+    ax[0].set_ylabel('elo value', fontsize=16)
+    ax[0].tick_params(labelsize=13)
+    ax[1].set_title(f'ELO on test', fontsize=18)
+    ax[1].set_xlabel('# of episode', fontsize=16)
+    ax[1].set_ylabel('elo value', fontsize=16)
+    ax[1].tick_params(labelsize=13)
+    elo_train = np.array(metrics_dict['elo_train']).transpose()
+    elo_test = np.array(metrics_dict['elo_test']).transpose()
+    for elo0, elo1, label in zip(elo_train, elo_test, agent_labels):
+        ax[0].plot(elo0, label=label)
+        ax[1].plot(elo1, label=label)
+    ax[0].legend()
+    ax[1].legend()
+    fig.tight_layout()
+    if directory is not None:
+        plt.savefig(f'{directory}/elo.png')
+
     # ACTIONS MATRIX
     fig, ax = plt.subplots(1, 2, figsize=(16, 9))
     ax[0].set_title('Offends', fontsize=18)

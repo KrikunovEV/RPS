@@ -1,5 +1,6 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
+import torch.nn.functional as functional
 
 
 class NegotiationModel(nn.Module):
@@ -19,6 +20,35 @@ class NegotiationModel(nn.Module):
     def forward(self, obs):
         obs = self.linear(obs.reshape(-1))
         return self.policy(obs), self.V(obs)
+
+
+class AttentionNegotiationModel(nn.Module):
+
+    def __init__(self, obs_space: int, cfg):
+        super(AttentionNegotiationModel, self).__init__()
+        self.cfg = cfg
+        self.scale = torch.sqrt(torch.Tensor([cfg.train.hidden_size]))
+
+        var = 2. / (5. * cfg.negotiation.space)
+        self.WQ = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
+        self.WK = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
+        self.WV = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
+        self.policy = nn.Linear(cfg.train.hidden_size, cfg.negotiation.space)
+        #self.policy = nn.Linear(cfg.train.hidden_size * cfg.common.players, cfg.negotiation.space)
+        self.V = nn.Linear(cfg.train.hidden_size, 1)
+
+    def forward(self, obs):
+        Q = torch.matmul(obs, self.WQ)
+        K = torch.matmul(obs, self.WK)
+        V = torch.matmul(obs, self.WV)
+
+        O = torch.matmul(Q, K.T)
+        O = torch.div(O, self.scale)
+        O = functional.softmax(O, dim=-1)
+        O = torch.matmul(O, V)
+        logits = O.sum(dim=0)
+
+        return self.policy(logits), self.V(logits)
 
 
 class SiamMLPModel(nn.Module):

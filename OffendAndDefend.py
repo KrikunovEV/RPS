@@ -9,17 +9,24 @@ class OADEnvironment:
     DEFEND_ID: int = 1
     WIN_REWARD: float = 1.
     LOOSE_REWARD: float = -1.
+    ELO_K: float = 20.
+    ELO_BASE: float = 10.
+    ELO_DEL: float = 400.
 
     def __init__(self, players: int, zero_sum: bool = True, debug: bool = False):
         self.players = players
         self.is_zero_sum = zero_sum
         self.debug = debug
         self.obs_space = 2 * (players + 1)
+        self.elo = np.full(players, 1000, dtype=np.int)
 
     def reset(self):
         obs = np.zeros((self.players, self.obs_space), dtype=np.float32)
         obs[:, (self.players, self.obs_space - 1)] = 1.
         return obs
+
+    def reset_elo(self):
+        self.elo = np.full(self.players, 1000, dtype=np.int)
 
     def play(self, choices: list):
         """
@@ -52,9 +59,29 @@ class OADEnvironment:
             total_loose_reward = np.sum(loosers_mask)
             if total_loose_reward != 0:
                 rewards[loosers_mask] = -1. / total_loose_reward
-        self.__print(f'Награды {rewards}')
 
-        return obs, rewards
+            # ELO
+            elo_sum = np.sum(self.elo)
+            estimates = ((elo_sum - self.elo) / (self.players - 1)) - self.elo  # mean R other - R current
+            estimates = 1. / (1. + self.ELO_BASE**(estimates / self.ELO_DEL))  # sigmoid
+
+            # S - E
+            if total_loose_reward == 0:
+                estimates = 1 - estimates
+            elif total_win_reward == 0:
+                estimates = -estimates
+            else:
+                scores = np.zeros(self.players)
+                scores[rewards > 0.] = 1.
+                estimates = scores - estimates
+
+            # correct rating
+            self.elo = self.elo + (self.ELO_K * estimates).astype(np.int)
+
+        self.__print(f'Награды {rewards}')
+        self.__print(f'ELO {self.elo}')
+
+        return obs, rewards, self.elo
 
     def get_obs_space(self):
         return self.obs_space

@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as functional
 import numpy as np
-from Model import SiamMLPModel, NegotiationModel
+from Model import SiamMLPModel, NegotiationModel, AttentionNegotiationModel
 
 
 class Agent:
@@ -23,7 +23,7 @@ class Agent:
         if cfg.negotiation.use:
             self.negot_model = []
             for step in range(negotiation_steps):
-                self.negot_model.append(NegotiationModel(obs_space, cfg))
+                self.negot_model.append(AttentionNegotiationModel(obs_space, cfg))
                 list_params = list_params + list(self.negot_model[-1].parameters())
 
         self.embeddings = None
