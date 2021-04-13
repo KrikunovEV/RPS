@@ -29,26 +29,41 @@ class AttentionNegotiationModel(nn.Module):
         self.cfg = cfg
         self.scale = torch.sqrt(torch.Tensor([cfg.train.hidden_size]))
 
-        var = 2. / (5. * cfg.negotiation.space)
-        self.WQ = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
-        self.WK = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
-        self.WV = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
-        self.policy = nn.Linear(cfg.train.hidden_size, cfg.negotiation.space)
-        #self.policy = nn.Linear(cfg.train.hidden_size * cfg.common.players, cfg.negotiation.space)
-        self.V = nn.Linear(cfg.train.hidden_size, 1)
+        var = 1. / (2. * obs_space)
+        #self.WQ = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
+        #self.WK = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
+        #self.WV = nn.Parameter(torch.normal(0, var, (obs_space, cfg.negotiation.space), requires_grad=True))
+        self.WQ = nn.Linear(obs_space, cfg.train.hidden_size)
+        self.WK = nn.Linear(obs_space, cfg.train.hidden_size)
+        self.WV = nn.Linear(obs_space, cfg.negotiation.space)
+        self.V = nn.Linear(obs_space, 1)
 
-    def forward(self, obs):
-        Q = torch.matmul(obs, self.WQ)
-        K = torch.matmul(obs, self.WK)
-        V = torch.matmul(obs, self.WV)
+    def forward(self, obs, ind):
+
+        query = obs[ind]
+        if ind == 0:
+            keys_values = obs[1:]
+        elif ind == self.cfg.common.players - 1:
+            keys_values = obs[:-1]
+        else:
+            keys_values = torch.cat((obs[:ind], obs[ind + 1:]))
+
+        '''
+        Q = torch.matmul(query, self.WQ)
+        K = torch.matmul(keys_values, self.WK)
+        V = torch.matmul(keys_values, self.WV)
+        '''
+
+        Q = self.WQ(query)
+        K = self.WK(keys_values)
+        V = self.WV(keys_values)
 
         O = torch.matmul(Q, K.T)
         O = torch.div(O, self.scale)
         O = functional.softmax(O, dim=-1)
         O = torch.matmul(O, V)
-        logits = O.sum(dim=0)
 
-        return self.policy(logits), self.V(logits)
+        return O, self.V(query)
 
 
 class SiamMLPModel(nn.Module):
@@ -225,3 +240,35 @@ class BaselineMLPModel(nn.Module):
 
         obs = self.linear(obs)
         return self.a_policy(obs), self.d_policy(obs), self.V(obs), None
+
+
+if __name__ == '__main__':
+    import utility as util
+    cfg = util.load_config('config/default.yaml')
+    model = AttentionNegotiationModel(3, cfg)
+
+    obs = torch.normal(0, 0.1, (3,), dtype=torch.float)
+    obs = torch.stack((obs, torch.full((3,), 2, dtype=torch.float)))
+    obs = torch.cat((obs, torch.full((1, 3), 3, dtype=torch.float)))
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
+
+    print(obs)
+
+    for i in range(5):
+        output = model(obs, 0)[0]
+        loss = -torch.log(functional.softmax(output, dim=-1).max())
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        print(output.data)
+        print(model.WQ.grad)
+
+    ind = [1, 0, 2]
+
+    print()
+    print(ind)
+    print()
+
+    #print(output20.data, output21.data, output22.data)

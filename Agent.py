@@ -54,14 +54,14 @@ class Agent:
     def reset_memory(self):
         raise Exception('There is no any model yet for resetting its hidden memory')
 
-    def negotiate(self, obs, step, epsilon):
+    def negotiate(self, obs, step, epsilon, ind):
         message = torch.zeros(self.cfg.negotiation.space + 1)
 
         if self.negotiable and step < self.negotiation_steps:
             if self.cfg.embeddings.use:
                 obs = torch.cat((obs, self.embeddings), dim=1)
 
-            negotiate_logits, negotiate_V = self.negot_model[step](obs)
+            negotiate_logits, negotiate_V = self.negot_model[step](obs, ind)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
             strategy = np.random.choice(['random', 'policy'], p=[epsilon, 1. - epsilon])
             if not self.eval and strategy == 'random':
@@ -144,6 +144,8 @@ class Agent:
 
             self.optimizer.zero_grad()
             loss.backward()
+            #if self.id == 0:
+            #    print(self.negot_model[1].WQ.weight.grad.T, self.negot_model[1].WQ.bias.grad)
             self.optimizer.step()
 
             self.loss_metric.append(loss.item())
