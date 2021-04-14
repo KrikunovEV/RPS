@@ -5,6 +5,7 @@ import yaml
 import numpy as np
 import seaborn as sn
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from random import randint
 from easydict import EasyDict
 from enum import Enum
@@ -290,7 +291,7 @@ def visualize_metrics(metrics_dict: dict, cfg: EasyDict, directory: str = None):
             fig, ax = plt.subplots(1, 1, figsize=(16, 9))
             ax.set_title(f'Player {p + 1}: embeddings ({cfg.embeddings.space}) PCA', fontsize=18)
             p_embeddings = np.stack(embeddings[p].data.detach().numpy())
-            pca = PCA(n_components=2)
+            pca = TSNE()
             p_embeddings = pca.fit_transform(p_embeddings)
             for i, (emb, label, ann_label) in enumerate(zip(p_embeddings, agent_labels, agent_id_labels)):
                 ax.scatter(emb[0], emb[1], label=label, s=150)

@@ -27,7 +27,7 @@ def run(cfg, game: str, model_type: util.ModelType, debug: bool = False):
                 orchestrator.reset_memory()
 
         if cfg.common.shuffle and cfg.common.use_obs:
-            obs = orchestrator.shuffle(obs)
+            orchestrator.shuffle()
 
         if cfg.negotiation.use:
             orchestrator.negotiation(obs, epsilon)
@@ -54,7 +54,7 @@ def run(cfg, game: str, model_type: util.ModelType, debug: bool = False):
                 orchestrator.reset_memory()
 
         if cfg.common.shuffle and cfg.common.use_obs:
-            obs = orchestrator.shuffle(obs)
+            orchestrator.shuffle()
 
         if cfg.negotiation.use:
             orchestrator.negotiation(obs, epsilon)

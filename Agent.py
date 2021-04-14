@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as functional
 import numpy as np
-from Model import SiamMLPModel, NegotiationModel, AttentionNegotiationModel
+from Model import SiamMLPModel, NegotiationModel, AttentionNegotiationModel, AttentionDecisionModel
 
 
 class Agent:
@@ -86,15 +86,15 @@ class Agent:
 
         return message
 
-    def make_decision(self, obs, epsilon):
+    def make_decision(self, obs, epsilon, shuffle_ind, ind):
         if self.cfg.negotiation.use and not self.negotiable and not self.cfg.negotiation.is_channel_open:
             obs[:, -(self.cfg.negotiation.space + 1):-1] = 0.
             obs[:, -1] = 1.
 
         if self.cfg.embeddings.use:
-            obs = torch.cat((obs, self.embeddings), dim=1)
+            obs = torch.cat((obs, self.embeddings[shuffle_ind]), dim=1)
 
-        a_logits, d_logits, V = self.model(obs)
+        a_logits, d_logits, V = self.model(obs, shuffle_ind)
 
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)
