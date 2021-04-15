@@ -4,9 +4,7 @@ import matplotlib.pyplot as plt
 import yaml
 import numpy as np
 import seaborn as sn
-from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-from random import randint
 from easydict import EasyDict
 from enum import Enum
 from sty import fg, ef, Style, RgbFg
@@ -126,8 +124,7 @@ def stat_plot(cfg: EasyDict):
     for i, (pair, coops) in enumerate(pair_coops.items()):
         ax[i].set_title(pair)
         ax[i].hist(coops, bins=10)
-        ax[i].set_ylim(0., 2000.)
-        ax[i].set_xlim(-10., 110.)
+        ax[i].set_ylim(0., 300.)
 
     plt.show()
 
@@ -169,9 +166,8 @@ def log_metrics(metrics_dict: dict, cfg: EasyDict):
         visualize_metrics(metrics_dict, cfg, directory=None)
 
     elif cfg.common.logging == LogType.local or cfg.common.logging == LogType.local_randomly:
-        if cfg.common.logging == LogType.local_randomly:
-            if randint(0, 4) != 0:
-                pass
+        if cfg.common.logging == LogType.local_randomly and np.random.randint(3) != 0:
+            return
 
         directory = os.path.join(cfg.common.experiment_dir, cfg.common.experiment_name, f'{metrics_dict["game"]}')
         os.makedirs(directory, exist_ok=True)
