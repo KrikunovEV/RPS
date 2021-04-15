@@ -1,5 +1,5 @@
 from OffendAndDefend import OADEnvironment
-from AgentOrchestrator import Orchestrator
+from Orchestrator import Orchestrator
 import utility as util
 import time
 

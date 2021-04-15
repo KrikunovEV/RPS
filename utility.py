@@ -181,7 +181,7 @@ def visualize_metrics(metrics_dict: dict, cfg: EasyDict, directory: str = None):
     plt.close('all')
 
     agent_labels = metrics_dict['agent_labels_list']
-    agent_id_labels = [int(label[:2]) for label in agent_labels]  # get only id, consider 0 <= id <= 99
+    agent_id_labels = [ind + 1 for ind in range(cfg.common.players)]
 
     # LOSS
     fig, ax = plt.subplots(1, 1, figsize=(16, 9))

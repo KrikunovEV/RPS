@@ -2,18 +2,18 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as functional
 import numpy as np
-from Model import SiamMLPModel, NegotiationModel, AttentionNegotiationModel, AttentionDecisionModel
+from Model import SiamMLPModel, AttentionNegotiationModel
 
 
 class Agent:
-    def __init__(self, id: int, obs_space: int, action_space: int, model_type, negotiation_steps: int, cfg):
+    def __init__(self, id: int, obs_space: int, action_space: int, model_type, cfg):
         self.cfg = cfg
         self.id = id
         self.negotiable = True if id < cfg.negotiation.players else False
-        self.agent_label = f'{id + 1}' + (' negotiable' if self.negotiable else '')
+        self.agent_label = f'{id + 1}' + ('n' if self.negotiable else '')
         self.eval = False
         self.model_type = model_type
-        self.negotiation_steps = negotiation_steps
+        self.negotiation_steps = cfg.negotiation.steps[id]
         self.negotiate_action = -1
 
         self.model = SiamMLPModel(obs_space, action_space, cfg)
@@ -22,7 +22,7 @@ class Agent:
         self.negot_model = None
         if cfg.negotiation.use:
             self.negot_model = []
-            for step in range(negotiation_steps):
+            for step in range(self.negotiation_steps):
                 self.negot_model.append(AttentionNegotiationModel(obs_space, cfg))
                 list_params = list_params + list(self.negot_model[-1].parameters())
 
@@ -46,7 +46,7 @@ class Agent:
         self.reward_eval_metric = []
         self.attacks_metric = np.zeros(cfg.common.players, dtype=np.int)
         self.defends_metric = np.zeros(cfg.common.players, dtype=np.int)
-        self.messages_metric = np.zeros((negotiation_steps, cfg.negotiation.space + 1), dtype=np.int)
+        self.messages_metric = np.zeros((self.negotiation_steps, cfg.negotiation.space + 1), dtype=np.int)
 
     def set_eval(self, eval: bool):
         self.eval = eval
@@ -54,14 +54,14 @@ class Agent:
     def reset_memory(self):
         raise Exception('There is no any model yet for resetting its hidden memory')
 
-    def negotiate(self, obs, step, epsilon, ind):
+    def negotiate(self, obs, step, epsilon, shuffle_id, my_id):
         message = torch.zeros(self.cfg.negotiation.space + 1)
 
         if self.negotiable and step < self.negotiation_steps:
             if self.cfg.embeddings.use:
-                obs = torch.cat((obs, self.embeddings), dim=1)
+                obs = torch.cat((obs, self.embeddings[shuffle_id]), dim=1)
 
-            negotiate_logits, negotiate_V = self.negot_model[step](obs, ind)
+            negotiate_logits, negotiate_V = self.negot_model[step](obs, my_id)
             negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
             strategy = np.random.choice(['random', 'policy'], p=[epsilon, 1. - epsilon])
             if not self.eval and strategy == 'random':
@@ -86,15 +86,15 @@ class Agent:
 
         return message
 
-    def make_decision(self, obs, epsilon, shuffle_ind, ind):
+    def make_decision(self, obs, epsilon, shuffle_id):
         if self.cfg.negotiation.use and not self.negotiable and not self.cfg.negotiation.is_channel_open:
             obs[:, -(self.cfg.negotiation.space + 1):-1] = 0.
             obs[:, -1] = 1.
 
         if self.cfg.embeddings.use:
-            obs = torch.cat((obs, self.embeddings[shuffle_ind]), dim=1)
+            obs = torch.cat((obs, self.embeddings[shuffle_id]), dim=1)
 
-        a_logits, d_logits, V = self.model(obs, shuffle_ind)
+        a_logits, d_logits, V = self.model(obs)
 
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)
@@ -116,8 +116,8 @@ class Agent:
             d_entropy = (d_policy * torch.log_softmax(d_logits, dim=-1)).sum()
             self.entropy.append(a_entropy + d_entropy)
         else:
-            self.attacks_metric[a_action] += 1
-            self.defends_metric[d_action] += 1
+            self.attacks_metric[shuffle_id[a_action]] += 1
+            self.defends_metric[shuffle_id[d_action]] += 1
 
         return [a_action, d_action]
 
@@ -144,8 +144,6 @@ class Agent:
 
             self.optimizer.zero_grad()
             loss.backward()
-            #if self.id == 0:
-            #    print(self.negot_model[1].WQ.weight.grad.T, self.negot_model[1].WQ.bias.grad)
             self.optimizer.step()
 
             self.loss_metric.append(loss.item())
@@ -156,6 +154,3 @@ class Agent:
         self.logs = []
         self.entropy = []
         self.value = []
-
-    def get_label(self):
-        return self.agent_label

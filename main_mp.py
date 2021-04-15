@@ -75,9 +75,6 @@ if __name__ == '__main__':
     for model_type in cfg.mp.model_list:
         model_game_counter[model_type.name] = 0
         model_pair_coops[model_type.name] = dict()
-        for p1 in range(cfg.common.players - 1):
-            for p2 in range(p1 + 1, cfg.common.players):
-                model_pair_coops[model_type.name][f'{p1 + 1}&{p2 + 1}'] = []
 
     processes_done = 0
     total_epochs = 0
@@ -93,6 +90,8 @@ if __name__ == '__main__':
         spent_time += result.metrics_dict['time']
 
         for (pair, coops) in result.metrics_dict['pair_coops'].items():
+            if pair not in model_pair_coops[result.task.model_type.name]:
+                model_pair_coops[result.task.model_type.name][pair] = []
             model_pair_coops[result.task.model_type.name][pair].append(coops)
         model_game_counter[result.task.model_type.name] += 1
 
