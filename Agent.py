@@ -6,13 +6,12 @@ from Model import SiamMLPModel, AttentionNegotiationModel
 
 
 class Agent:
-    def __init__(self, id: int, obs_space: int, action_space: int, model_type, cfg):
+    def __init__(self, id: int, obs_space: int, action_space: int, cfg):
         self.cfg = cfg
         self.id = id
         self.negotiable = True if id < cfg.negotiation.players else False
         self.agent_label = f'{id + 1}' + ('n' if self.negotiable else '')
         self.eval = False
-        self.model_type = model_type
         self.negotiation_steps = cfg.negotiation.steps[id]
         self.negotiate_action = -1
 

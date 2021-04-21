@@ -5,7 +5,7 @@ from Agent import Agent
 
 class Orchestrator:
 
-    def __init__(self, obs_space: int, action_space: int, model_type, cfg):
+    def __init__(self, obs_space: int, action_space: int, cfg):
         self.cfg = cfg
         self.messages = None
         self.eval = False
@@ -15,10 +15,11 @@ class Orchestrator:
         if not cfg.common.use_obs:
             obs_space = 0
         if cfg.negotiation.use:
-            obs_space += cfg.negotiation.space + 1
+            obs_space += cfg.negotiation.space * 4
         if cfg.embeddings.use:
             obs_space += cfg.embeddings.space
-        self.Agents = [Agent(id, obs_space, action_space, model_type, cfg) for id in range(cfg.common.players)]
+
+        self.Agents = [Agent(id, obs_space, action_space, cfg) for id in range(cfg.common.players)]
 
         # only in eval mode
         self.pair_coops = dict()

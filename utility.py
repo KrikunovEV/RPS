@@ -10,20 +10,10 @@ from enum import Enum
 from sty import fg, ef, Style, RgbFg
 
 
-# CONSOLE OUTPUT COLORS
 fg.category = Style(RgbFg(229, 83, 0))
 fg.parameter = Style(RgbFg(255, 165, 0))
 fg.warning = Style(RgbFg(255, 204, 0))
 fg.error = Style(RgbFg(255, 51, 0))
-
-
-# ENUM OBJECTS
-class ModelType(Enum):
-    baseline_mlp = 0
-    baseline_rnn = 1
-    attention = 2
-    siam_mlp = 'siam_mlp'
-    siam_rnn = 4
 
 
 class LogType(Enum):
@@ -42,15 +32,6 @@ def load_config(path: str):
             raise Exception(ef.bold + path + ef.rs + ': ' + str(exception))
 
     config = EasyDict(config)
-
-    # convert model names to objects
-    if not isinstance(config.mp.model_list, list):
-        raise Exception(ef.bold + 'config.mp.model_list' + ef.rs + f' must be a list of model names but got '
-                                                                   f'{type(config.mp.model_list)}')
-    model_list = config.mp.model_list.copy()
-    config.mp.model_list = []
-    for model_name in model_list:
-        config.mp.model_list.append(ModelType(model_name))
 
     # convert log name to object
     if not isinstance(config.common.logging, str):
@@ -107,13 +88,6 @@ def load_config(path: str):
     return config
 
 
-def is_require_reset(model_type: ModelType):
-    require = False
-    if model_type == ModelType.baseline_rnn:
-        require = True
-    return require
-
-
 def stat_plot(cfg: EasyDict):
     file = os.path.join(cfg.common.experiment_dir, cfg.common.experiment_name, 'mp_stat', cfg.mp.stat_file)
     with open(file, 'rb') as f:
@@ -129,36 +103,30 @@ def stat_plot(cfg: EasyDict):
     plt.show()
 
 
-def print_game_stats(model_type: ModelType, metrics_dict: dict, cfg: EasyDict, pname: str = '[C1]'):
+def print_game_stats(metrics_dict: dict, cfg: EasyDict, pname: str = '[C1]'):
     text = '\n' + fg.category + f'{pname}' + fg.rs
     text += ': the game '
     text += fg.category + metrics_dict['game'] + fg.rs
     text += ' lasts '
     text += fg.category + f'{int(metrics_dict["time"] // 60)}m {round(metrics_dict["time"] % 60)}s' + fg.rs
-    text += ' using '
-    text += fg.category + model_type.name + fg.rs
-    text += ' model with pair coops:'
+    text += ' with pair coops:'
     for (pair, coops) in metrics_dict['pair_coops'].items():
         text += '\n' + fg.parameter + f'{pair}' + fg.rs
         text += f': {coops}/{cfg.test.episodes} ' + ef.bold + f'({coops / cfg.test.episodes})' + ef.rs
     print(text)
 
 
-def log_stats(model_pair_coops: dict, model_game_counter: dict, stat_directory, cfg: EasyDict):
-    text = '\nLog stats'
-    for model_type in cfg.mp.model_list:
-        name = model_type.name
-        text += '\n' + fg.category + f'{name}' + fg.rs + ':'
-
-        for (pair, coops) in model_pair_coops[name].items():
-            coops = np.sum(coops)
-            total_coops = model_game_counter[name] * cfg.test.episodes
-            text += '\n' + fg.parameter + f'{pair}' + fg.rs
-            text += f': {coops}/{total_coops} ' + ef.bold + f'({coops / total_coops})' + ef.rs
+def log_stats(pair_coops: dict, total_games: int, stat_directory: str, cfg: EasyDict):
+    text = '\nLog stats for ' + fg.category + f'{total_games}' + fg.rs + ' games:'
+    for (pair, coops) in pair_coops.items():
+        coops = np.sum(coops)
+        total_coops = total_games * cfg.test.episodes
+        text += '\n' + fg.parameter + f'{pair}' + fg.rs
+        text += f': {coops}/{total_coops} ' + ef.bold + f'({coops / total_coops})' + ef.rs
 
     print(text)
     with open(os.path.join(stat_directory, cfg.mp.stat_file), 'wb') as f:
-        pickle.dump({'model_pair_coops': model_pair_coops, 'model_game_counter': model_game_counter}, f)
+        pickle.dump({'pair_coops': pair_coops, 'total_games': total_games}, f)
 
 
 def log_metrics(metrics_dict: dict, cfg: EasyDict):

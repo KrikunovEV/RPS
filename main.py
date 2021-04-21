@@ -4,13 +4,11 @@ import utility as util
 import time
 
 
-def run(cfg, game: str, model_type: util.ModelType, debug: bool = False):
+def run_game(cfg, game: str, debug: bool = False):
     start_time = time.time()
 
     env = OADEnvironment(players=cfg.common.players, debug=debug)
-    orchestrator = Orchestrator(obs_space=env.get_obs_space(),
-                                action_space=env.get_action_space(),
-                                model_type=model_type, cfg=cfg)
+    orchestrator = Orchestrator(obs_space=env.get_obs_space(), action_space=env.get_action_space(), cfg=cfg)
 
     orchestrator.set_eval(eval=False)
     epsilon = cfg.train.epsilon_upper
@@ -23,10 +21,9 @@ def run(cfg, game: str, model_type: util.ModelType, debug: bool = False):
 
         if episode % cfg.common.round_episodes == 0:
             obs = env.reset()
-            if util.is_require_reset(model_type):
-                orchestrator.reset_memory()
+            orchestrator.reset_memory()
 
-        if cfg.common.shuffle and cfg.common.use_obs:
+        if cfg.common.shuffle:
             orchestrator.shuffle()
 
         if cfg.negotiation.use:
@@ -50,10 +47,9 @@ def run(cfg, game: str, model_type: util.ModelType, debug: bool = False):
 
         if episode % cfg.common.round_episodes == 0:
             obs = env.reset()
-            if util.is_require_reset(model_type):
-                orchestrator.reset_memory()
+            orchestrator.reset_memory()
 
-        if cfg.common.shuffle and cfg.common.use_obs:
+        if cfg.common.shuffle:
             orchestrator.shuffle()
 
         if cfg.negotiation.use:
@@ -74,9 +70,8 @@ def run(cfg, game: str, model_type: util.ModelType, debug: bool = False):
 
 if __name__ == '__main__':
     cfg = util.load_config('config/default.yaml')
-    model_type = util.ModelType.siam_mlp
 
-    metrics_dict = run(cfg, '2n vs 1 shuffle', model_type, debug=True)
+    metrics_dict = run_game(cfg=cfg, game='test', debug=True)
 
     util.log_metrics(metrics_dict, cfg)
-    util.print_game_stats(model_type, metrics_dict, cfg)
+    util.print_game_stats(metrics_dict, cfg)
