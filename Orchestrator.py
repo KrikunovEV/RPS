@@ -7,10 +7,10 @@ class Orchestrator:
 
     def __init__(self, obs_space: int, action_space: int, cfg):
         self.cfg = cfg
-        self.messages = None
         self.eval = False
         self.negotiation_steps = np.max(cfg.negotiation.steps)
         self.shuffle_id = np.arange(cfg.common.players)
+        self.kv_all, self.q_all = None, None
 
         if not cfg.common.use_obs:
             obs_space = 0
@@ -39,37 +39,51 @@ class Orchestrator:
         for agent in self.Agents:
             agent.set_eval(eval)
 
-    def negotiation(self, obs, epsilon):
-        messages = [torch.zeros(self.cfg.negotiation.space + 1) for _ in range(self.cfg.common.players)]
-        for i in range(len(messages)):
-            messages[i][-1] = 1.
+    def negotiation(self):
+        kv_all, q_all = self.__build_kv_q()
 
+        for step in range(self.negotiation_steps):
+            new_messages = [agent.negotiate(kv_all[agent.id], q_all[agent.id], step) for agent in self.Agents]
+            kv_all, q_all = self.__build_kv_q(new_messages)
+
+        self.kv_all, self.q_all = kv_all, q_all
+
+    def __build_kv_q(self, messages=None):
+        kv_all, q_all = [], []
+        for p1 in range(self.cfg.common.players):
+            kv_p, q_p = [], []
+            for p2 in range(self.cfg.common.players):
+                if p1 != p2:
+                    if messages is None:
+                        kv_p.append(self.Agents[p1].start_messages[str(p2)])
+                        q_p.append(self.Agents[p2].start_messages[str(p1)])
+                    else:
+                        kv_p.append(messages[p1][str(p2)])
+                        q_p.append(messages[p2][str(p1)])
+            kv_all.append(torch.stack(kv_p))
+            q_all.append(torch.stack(q_p).detach())
+        return kv_all, q_all
+
+    def decisions(self, obs, epsilon):
         if self.cfg.common.use_obs:
             obs = torch.from_numpy(obs)
         else:
             obs = torch.empty((0,))
 
-        for step in range(self.negotiation_steps):
-            obs_negot = torch.cat((obs, torch.stack(messages)), dim=1)[self.shuffle_id]
-            messages = [agent.negotiate(obs_negot, step, epsilon, self.shuffle_id, ind)
-                        for agent, ind in zip(self.Agents, self.shuffle_id)]
-        self.messages = messages
-
-    def decisions(self, obs, epsilon):
-        if self.cfg.common.use_obs:
-            obs = torch.from_numpy(obs)[self.shuffle_id]
-        else:
-            obs = torch.empty((0,))
-
         if self.cfg.negotiation.use:
-            obs = torch.cat((obs, torch.stack(self.messages)[self.shuffle_id]), dim=1)
+            self.q_all = torch.stack([self.q_all[p].reshape(-1) for p in range(len(self.q_all))])
 
-        choices = [agent.make_decision(obs, epsilon, self.shuffle_id) for agent in self.Agents]
-        choices = np.array(choices).reshape(-1)
-        choices_corrected = choices.copy()
-        for true, ind in enumerate(self.shuffle_id):
-            choices_corrected[choices == true] = ind
-        choices = choices_corrected.reshape(-1, 2)
+            choices = []
+            for agent in self.Agents:
+                kv_all_detached = []
+                for p in range(self.cfg.common.players):
+                    kv_all_detached.append(self.kv_all[p].reshape(-1))
+                    if p != agent.id:
+                        kv_all_detached[-1] = kv_all_detached[-1].detach()
+                kv_all_detached = torch.stack(kv_all_detached)
+                agent_obs = torch.cat((obs, kv_all_detached, self.q_all), dim=1)
+
+                choices.append(agent.make_decision(agent_obs, epsilon))
 
         if self.eval:
             for p1 in range(self.cfg.common.players - 1):
@@ -94,6 +108,4 @@ class Orchestrator:
                 'reward_list': [agent.reward_metric for agent in self.Agents],
                 'reward_eval_list': [agent.reward_eval_metric for agent in self.Agents],
                 'attacks_list': [agent.attacks_metric for agent in self.Agents],
-                'defends_list': [agent.defends_metric for agent in self.Agents],
-                'messages_list': [agent.messages_metric for agent in self.Agents],
-                'embeddings_list': [agent.embeddings for agent in self.Agents]}
+                'defends_list': [agent.defends_metric for agent in self.Agents]}

@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as functional
 import numpy as np
-from Model import SiamMLPModel, AttentionNegotiationModel
+from Model import SiamMLPModel, AttentionLayer
 
 
 class Agent:
@@ -13,23 +13,26 @@ class Agent:
         self.agent_label = f'{id + 1}' + ('n' if self.negotiable else '')
         self.eval = False
         self.negotiation_steps = cfg.negotiation.steps[id]
-        self.negotiate_action = -1
 
         self.model = SiamMLPModel(obs_space, action_space, cfg)
         list_params = list(self.model.parameters())
 
-        self.negot_model = None
+        self.transformer = None
+        self.start_messages = dict()
         if cfg.negotiation.use:
-            self.negot_model = []
+            self.transformer = []
             for step in range(self.negotiation_steps):
-                self.negot_model.append(AttentionNegotiationModel(obs_space, cfg))
-                list_params = list_params + list(self.negot_model[-1].parameters())
+                self.transformer.append(AttentionLayer(cfg))
+                list_params = list_params + list(self.transformer[-1].parameters())
 
-        self.embeddings = None
-        if cfg.embeddings.use:
-            self.embeddings = torch.nn.Parameter(torch.ones((cfg.common.players, cfg.embeddings.space)),
-                                                 requires_grad=True)
-            list_params = list_params + [self.embeddings]
+            for p in range(cfg.common.players):
+                if p != id:
+                    #if self.negotiable:
+                    #    self.start_messages[str(p)] = torch.nn.Parameter(torch.randn(cfg.negotiation.space,
+                    #                                                                 requires_grad=True))
+                    #    list_params = list_params + [self.start_messages[str(p)]]
+                    #else:
+                    self.start_messages[str(p)] = torch.zeros(cfg.negotiation.space)
 
         self.optimizer = optim.Adam(list_params, lr=cfg.train.lr)
 
@@ -45,54 +48,33 @@ class Agent:
         self.reward_eval_metric = []
         self.attacks_metric = np.zeros(cfg.common.players, dtype=np.int)
         self.defends_metric = np.zeros(cfg.common.players, dtype=np.int)
-        self.messages_metric = np.zeros((self.negotiation_steps, cfg.negotiation.space + 1), dtype=np.int)
 
     def set_eval(self, eval: bool):
         self.eval = eval
 
     def reset_memory(self):
-        raise Exception('There is no any model yet for resetting its hidden memory')
+        pass
 
-    def negotiate(self, obs, step, epsilon, shuffle_id, my_id):
-        message = torch.zeros(self.cfg.negotiation.space + 1)
+    def negotiate(self, kv, q, step):
+        new_messages = self.start_messages
 
         if self.negotiable and step < self.negotiation_steps:
-            if self.cfg.embeddings.use:
-                obs = torch.cat((obs, self.embeddings[shuffle_id]), dim=1)
 
-            negotiate_logits, negotiate_V = self.negot_model[step](obs, my_id)
-            negotiate_policy = functional.softmax(negotiate_logits, dim=-1)
-            strategy = np.random.choice(['random', 'policy'], p=[epsilon, 1. - epsilon])
-            if not self.eval and strategy == 'random':
-                self.negotiate_action = np.random.randint(negotiate_policy.shape[0])
-            else:
-                self.negotiate_action = np.random.choice(negotiate_policy.shape[0],
-                                                         p=negotiate_policy.detach().numpy())
+            # concatenate one-hot vector to encode agent position
+            emb = torch.eye(len(kv))
+            kv = torch.cat((emb, kv), dim=1)
+            q = torch.cat((emb, q), dim=1)
 
-            if not self.eval:
-                if negotiate_policy[self.negotiate_action] < 0.00000001:
-                    self.logs.append(torch.log(negotiate_policy[self.negotiate_action] + 0.00000001))
-                else:
-                    self.logs.append(torch.log(negotiate_policy[self.negotiate_action]))
-                self.entropy.append((negotiate_policy * torch.log_softmax(negotiate_logits, dim=-1)).sum())
-                self.reward.append(0)
-                self.value.append(negotiate_V)
+            messages = self.transformer[step](kv, q)
+            ind = 0
+            for p in range(self.cfg.common.players):
+                if p != self.id:
+                    new_messages[str(p)] = messages[ind]
+                    ind += 1
 
-        message[self.negotiate_action] = 1.
+        return new_messages
 
-        if self.eval and step < self.negotiation_steps:
-            self.messages_metric[step, self.negotiate_action] += 1
-
-        return message
-
-    def make_decision(self, obs, epsilon, shuffle_id):
-        if self.cfg.negotiation.use and not self.negotiable and not self.cfg.negotiation.is_channel_open:
-            obs[:, -(self.cfg.negotiation.space + 1):-1] = 0.
-            obs[:, -1] = 1.
-
-        if self.cfg.embeddings.use:
-            obs = torch.cat((obs, self.embeddings[shuffle_id]), dim=1)
-
+    def make_decision(self, obs, epsilon):
         a_logits, d_logits, V = self.model(obs)
 
         a_policy = functional.softmax(a_logits, dim=-1)
@@ -115,8 +97,8 @@ class Agent:
             d_entropy = (d_policy * torch.log_softmax(d_logits, dim=-1)).sum()
             self.entropy.append(a_entropy + d_entropy)
         else:
-            self.attacks_metric[shuffle_id[a_action]] += 1
-            self.defends_metric[shuffle_id[d_action]] += 1
+            self.attacks_metric[a_action] += 1
+            self.defends_metric[d_action] += 1
 
         return [a_action, d_action]
 

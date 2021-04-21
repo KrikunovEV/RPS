@@ -27,7 +27,7 @@ def run_game(cfg, game: str, debug: bool = False):
             orchestrator.shuffle()
 
         if cfg.negotiation.use:
-            orchestrator.negotiation(obs, epsilon)
+            orchestrator.negotiation()
 
         choices = orchestrator.decisions(obs, epsilon)
         obs, rewards, elo = env.play(choices)
@@ -53,7 +53,7 @@ def run_game(cfg, game: str, debug: bool = False):
             orchestrator.shuffle()
 
         if cfg.negotiation.use:
-            orchestrator.negotiation(obs, epsilon)
+            orchestrator.negotiation()
 
         choices = orchestrator.decisions(obs, epsilon)
         obs, rewards, elo = env.play(choices)

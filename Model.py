@@ -57,6 +57,38 @@ class AttentionNegotiationModel(nn.Module):
         return self.policy(context), self.V(context)
 
 
+class AttentionLayer(nn.Module):
+
+    def __init__(self, cfg):
+        super(AttentionLayer, self).__init__()
+        self.cfg = cfg
+        self.scale = torch.sqrt(torch.Tensor([cfg.train.hidden_size]))
+
+        space = cfg.negotiation.space + cfg.common.players - 1
+        self.WQ = nn.Parameter(torch.randn((space, cfg.train.hidden_size), requires_grad=True))
+        self.WK = nn.Parameter(torch.randn((space, cfg.train.hidden_size), requires_grad=True))
+        self.WV = nn.Parameter(torch.randn((space, cfg.train.hidden_size), requires_grad=True))
+        self.FF = nn.Sequential(
+            nn.Linear(cfg.train.hidden_size, cfg.train.hidden_size * 2),
+            nn.LeakyReLU(),
+            nn.Linear(cfg.train.hidden_size * 2, cfg.negotiation.space),
+        )
+
+    def forward(self, kv, q):
+        Q = torch.matmul(q, self.WQ)
+        K = torch.matmul(kv, self.WK)
+        V = torch.matmul(kv, self.WV)
+
+        O = torch.matmul(Q, K.T)
+        O = torch.div(O, self.scale)
+        O = functional.softmax(O, dim=-1)
+        context = torch.matmul(O, V)
+
+        messages = self.FF(context)
+
+        return messages
+
+
 class SiamMLPModel(nn.Module):
 
     def __init__(self, obs_space: int, action_space: int, cfg):
