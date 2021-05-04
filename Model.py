@@ -3,76 +3,17 @@ import torch.nn as nn
 import torch.nn.functional as functional
 
 
-class NegotiationModel(nn.Module):
-
-    def __init__(self, obs_space: int, cfg):
-        super(NegotiationModel, self).__init__()
-        self.cfg = cfg
-        obs_space *= cfg.common.players
-
-        self.linear = nn.Sequential(
-            nn.Linear(obs_space, obs_space // 2),
-            nn.LeakyReLU()
-        )
-        self.policy = nn.Linear(obs_space // 2, cfg.negotiation.space)
-        self.V = nn.Linear(obs_space // 2, 1)
-
-    def forward(self, obs):
-        obs = self.linear(obs.reshape(-1))
-        return self.policy(obs), self.V(obs)
-
-
-class AttentionNegotiationModel(nn.Module):
-
-    def __init__(self, obs_space: int, cfg):
-        super(AttentionNegotiationModel, self).__init__()
-        self.cfg = cfg
-        self.scale = torch.sqrt(torch.Tensor([cfg.train.hidden_size]))
-
-        var = 1. / (2. * obs_space)
-        self.WQ = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
-        self.WK = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
-        self.WV = nn.Parameter(torch.normal(0, var, (obs_space, cfg.train.hidden_size), requires_grad=True))
-        self.policy = nn.Linear(cfg.train.hidden_size, cfg.negotiation.space)
-        self.V = nn.Linear(cfg.train.hidden_size, 1)
-
-    def forward(self, obs, ind):
-        query = obs[ind]
-        if ind == 0:
-            keys_values = obs[1:]
-        elif ind == self.cfg.common.players - 1:
-            keys_values = obs[:-1]
-        else:
-            keys_values = torch.cat((obs[:ind], obs[ind + 1:]))
-
-        Q = torch.matmul(query, self.WQ)
-        K = torch.matmul(keys_values, self.WK)
-        V = torch.matmul(keys_values, self.WV)
-
-        O = torch.matmul(Q, K.T)
-        O = torch.div(O, self.scale)
-        O = functional.softmax(O, dim=-1)
-        context = torch.matmul(O, V)
-
-        return self.policy(context), self.V(context)
-
-
-class AttentionLayer(nn.Module):
-
+class Attention(nn.Module):
     def __init__(self, cfg):
-        super(AttentionLayer, self).__init__()
+        super(Attention, self).__init__()
         self.cfg = cfg
         self.scale = torch.sqrt(torch.Tensor([cfg.train.hidden_size]))
 
         space = cfg.negotiation.space + cfg.common.players - 1
-        self.WQ = nn.Parameter(torch.randn((space, cfg.train.hidden_size), requires_grad=True))
-        self.WK = nn.Parameter(torch.randn((space, cfg.train.hidden_size), requires_grad=True))
-        self.WV = nn.Parameter(torch.randn((space, cfg.train.hidden_size), requires_grad=True))
-        self.FF = nn.Sequential(
-            nn.Linear(cfg.train.hidden_size, cfg.train.hidden_size * 2),
-            nn.LeakyReLU(),
-            nn.Linear(cfg.train.hidden_size * 2, cfg.negotiation.space),
-        )
+        var = 2. / (5. * space)
+        self.WQ = nn.Parameter(torch.normal(0, var, (space, cfg.train.hidden_size)))
+        self.WK = nn.Parameter(torch.normal(0, var, (space, cfg.train.hidden_size)))
+        self.WV = nn.Parameter(torch.normal(0, var, (space, cfg.negotiation.space)))
 
     def forward(self, kv, q):
         Q = torch.matmul(q, self.WQ)
@@ -82,22 +23,53 @@ class AttentionLayer(nn.Module):
         O = torch.matmul(Q, K.T)
         O = torch.div(O, self.scale)
         O = functional.softmax(O, dim=-1)
-        context = torch.matmul(O, V)
-
-        messages = self.FF(context)
+        messages = torch.matmul(O, V)
 
         return messages
 
 
-class SiamMLPModel(nn.Module):
+class NegotiationLayer(nn.Module):
+
+    def __init__(self, cfg, emb):
+        super(NegotiationLayer, self).__init__()
+        self.cfg = cfg
+        self.emb = emb
+
+        self.ln_kv = nn.LayerNorm(cfg.negotiation.space)
+        self.ln_q = nn.LayerNorm(cfg.negotiation.space)
+        self.ln_m = nn.LayerNorm(cfg.negotiation.space)
+        self.ln_ff = nn.LayerNorm(cfg.negotiation.space)
+
+        self.attention = Attention(cfg)
+        self.self_attention = Attention(cfg)
+        self.FF = nn.Sequential(
+            nn.Linear(cfg.negotiation.space, cfg.train.hidden_size),
+            nn.ReLU(inplace=True),
+            nn.Linear(cfg.train.hidden_size, cfg.negotiation.space)
+        )
+
+    def forward(self, kv, q):
+        kv_emb = torch.cat((self.emb, self.ln_kv(kv)), dim=1)
+        q_emb = torch.cat((self.emb, self.ln_q(q)), dim=1)
+        m = self.ln_m(self.attention(kv_emb, q_emb))
+
+        kv_emb = torch.cat((self.emb, m + kv), dim=1)
+        q_emb = torch.cat((self.emb, m + q), dim=1)
+        m = self.ln_ff(self.self_attention(kv_emb, q_emb))
+
+        m = self.FF(m)
+        return m
+
+
+class SiamMLP(nn.Module):
 
     def __init__(self, obs_space: int, action_space: int, cfg):
-        super(SiamMLPModel, self).__init__()
+        super(SiamMLP, self).__init__()
         self.cfg = cfg
 
         self.policies = nn.Sequential(
             nn.Linear(obs_space, obs_space // 2),
-            nn.LeakyReLU(),
+            nn.ReLU(inplace=True),
             nn.Linear(obs_space // 2, 2),
         )
         self.V = nn.Linear(2 * (action_space - 1), 1)

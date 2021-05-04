@@ -1,8 +1,9 @@
 import torch
+import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as functional
 import numpy as np
-from Model import SiamMLPModel, AttentionLayer
+from Model import SiamMLP, NegotiationLayer
 
 
 class Agent:
@@ -14,25 +15,25 @@ class Agent:
         self.eval = False
         self.negotiation_steps = cfg.negotiation.steps[id]
 
-        self.model = SiamMLPModel(obs_space, action_space, cfg)
+        self.model = SiamMLP(obs_space, action_space, cfg)
         list_params = list(self.model.parameters())
 
         self.transformer = None
         self.start_kv = []
         self.kv = []
-        if cfg.negotiation.use:
+        if cfg.negotiation.use and self.negotiable:
+            self.start_kv = nn.Parameter(torch.zeros((cfg.common.players - 1, cfg.negotiation.space)))
+            list_params = list_params + [self.start_kv]
+            self.kv = self.start_kv
+            emb = torch.eye(len(self.kv))
+
             self.transformer = []
             for step in range(self.negotiation_steps):
-                self.transformer.append(AttentionLayer(cfg))
+                self.transformer.append(NegotiationLayer(cfg, emb))
                 list_params = list_params + list(self.transformer[-1].parameters())
-
-                    #if self.negotiable:
-                    #    self.start_messages[str(p)] = torch.nn.Parameter(torch.randn(cfg.negotiation.space,
-                    #                                                                 requires_grad=True))
-                    #    list_params = list_params + [self.start_messages[str(p)]]
-                    #else:
-                self.start_kv = torch.stack([torch.zeros(cfg.negotiation.space) for p in range(cfg.common.players - 1)])
-            self.kv = self.start_kv
+        else:
+            self.start_kv = torch.zeros((cfg.common.players - 1, cfg.negotiation.space))
+        self.kv = self.start_kv
 
         self.optimizer = optim.Adam(list_params, lr=cfg.train.lr)
 
@@ -53,7 +54,7 @@ class Agent:
         self.eval = eval
 
     def reset_memory(self):
-        pass
+        return
 
     def negotiate(self, q, step):
         if self.negotiable and step < self.negotiation_steps:
@@ -61,18 +62,11 @@ class Agent:
             if step == 0:
                 self.kv = self.start_kv
 
-            print(q.shape, self.kv.shape)
+            self.kv = self.transformer[step](self.kv, q)
 
-            # concatenate one-hot vector to encode agent position
-            emb = torch.eye(len(self.kv))
-            kv = torch.cat((emb, self.kv), dim=1)
-            q = torch.cat((emb, q), dim=1)
-
-            self.kv = self.transformer[step](kv, q)
-
-    def make_decision(self, q, epsilon):
+    def make_decision(self, obs, epsilon):
         if self.cfg.negotiation.use:
-            obs = torch.cat((q, self.kv), dim=1)
+            obs = torch.cat((obs, self.kv), dim=1)
 
         a_logits, d_logits, V = self.model(obs)
 

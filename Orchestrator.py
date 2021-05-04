@@ -41,18 +41,15 @@ class Orchestrator:
 
     def negotiation(self):
         q_all = self.__build_q()
-
         for step in range(self.negotiation_steps):
             for agent in self.Agents:
                 agent.negotiate(q_all[agent.id], step)
             q_all = self.__build_q(start=False)
-            print(len(q_all), q_all[0].shape)
-
         self.q_all = q_all
 
     def __build_q(self, start: bool = True):
         q_all = []
-        ind = [0, 0, 0]
+        ind = [0 for _ in range(self.cfg.common.players)]
         for p1 in range(self.cfg.common.players):
             q_p = []
             for p2 in range(self.cfg.common.players):
@@ -63,7 +60,6 @@ class Orchestrator:
                 else:
                     q_p.append(self.Agents[p2].kv[ind[p2]].detach())
                 ind[p2] += 1
-
             q_all.append(torch.stack(q_p))
         return q_all
 
@@ -73,11 +69,8 @@ class Orchestrator:
         else:
             obs = torch.empty((0,))
 
-        '''
-        if self.cfg.negotiation.use:
-            self.q_all = torch.stack([self.q_all[p].reshape(-1) for p in range(len(self.q_all))])
-            obs = torch.cat((obs, self.q_all), dim=1)
-        '''
+        #if self.cfg.negotiation.use:
+            #obs = torch.cat((obs, self.q_all), dim=1)
 
         choices = [agent.make_decision(self.q_all[agent.id], epsilon) for agent in self.Agents]
 
