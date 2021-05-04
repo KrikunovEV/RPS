@@ -225,6 +225,7 @@ def visualize_metrics(metrics_dict: dict, cfg: EasyDict, directory: str = None):
     if directory is not None:
         plt.savefig(f'{directory}/action_matrix.png')
 
+    '''
     if cfg.negotiation.use:
         steps = np.max(cfg.negotiation.steps)
         categories = cfg.negotiation.space + 1
@@ -248,6 +249,7 @@ def visualize_metrics(metrics_dict: dict, cfg: EasyDict, directory: str = None):
         fig.tight_layout()
         if directory is not None:
             plt.savefig(f'{directory}/messages.png')
+    '''
 
     if cfg.embeddings.use:
         embeddings = metrics_dict['embeddings_list']

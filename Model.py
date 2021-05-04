@@ -100,7 +100,7 @@ class SiamMLPModel(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(obs_space // 2, 2),
         )
-        self.V = nn.Linear(2 * action_space, 1)
+        self.V = nn.Linear(2 * (action_space - 1), 1)
 
     def forward(self, obs):
         actions = self.policies(obs).reshape(-1)

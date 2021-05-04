@@ -10,12 +10,12 @@ class Orchestrator:
         self.eval = False
         self.negotiation_steps = np.max(cfg.negotiation.steps)
         self.shuffle_id = np.arange(cfg.common.players)
-        self.kv_all, self.q_all = None, None
+        self.q_all = None
 
         if not cfg.common.use_obs:
             obs_space = 0
         if cfg.negotiation.use:
-            obs_space += cfg.negotiation.space * 4
+            obs_space += cfg.negotiation.space * 2
         if cfg.embeddings.use:
             obs_space += cfg.embeddings.space
 
@@ -40,29 +40,32 @@ class Orchestrator:
             agent.set_eval(eval)
 
     def negotiation(self):
-        kv_all, q_all = self.__build_kv_q()
+        q_all = self.__build_q()
 
         for step in range(self.negotiation_steps):
-            new_messages = [agent.negotiate(kv_all[agent.id], q_all[agent.id], step) for agent in self.Agents]
-            kv_all, q_all = self.__build_kv_q(new_messages)
+            for agent in self.Agents:
+                agent.negotiate(q_all[agent.id], step)
+            q_all = self.__build_q(start=False)
+            print(len(q_all), q_all[0].shape)
 
-        self.kv_all, self.q_all = kv_all, q_all
+        self.q_all = q_all
 
-    def __build_kv_q(self, messages=None):
-        kv_all, q_all = [], []
+    def __build_q(self, start: bool = True):
+        q_all = []
+        ind = [0, 0, 0]
         for p1 in range(self.cfg.common.players):
-            kv_p, q_p = [], []
+            q_p = []
             for p2 in range(self.cfg.common.players):
-                if p1 != p2:
-                    if messages is None:
-                        kv_p.append(self.Agents[p1].start_messages[str(p2)])
-                        q_p.append(self.Agents[p2].start_messages[str(p1)])
-                    else:
-                        kv_p.append(messages[p1][str(p2)])
-                        q_p.append(messages[p2][str(p1)])
-            kv_all.append(torch.stack(kv_p))
-            q_all.append(torch.stack(q_p).detach())
-        return kv_all, q_all
+                if p1 == p2:
+                    continue
+                if start:
+                    q_p.append(self.Agents[p2].start_kv[ind[p2]].detach())
+                else:
+                    q_p.append(self.Agents[p2].kv[ind[p2]].detach())
+                ind[p2] += 1
+
+            q_all.append(torch.stack(q_p))
+        return q_all
 
     def decisions(self, obs, epsilon):
         if self.cfg.common.use_obs:
@@ -70,20 +73,13 @@ class Orchestrator:
         else:
             obs = torch.empty((0,))
 
+        '''
         if self.cfg.negotiation.use:
             self.q_all = torch.stack([self.q_all[p].reshape(-1) for p in range(len(self.q_all))])
+            obs = torch.cat((obs, self.q_all), dim=1)
+        '''
 
-            choices = []
-            for agent in self.Agents:
-                kv_all_detached = []
-                for p in range(self.cfg.common.players):
-                    kv_all_detached.append(self.kv_all[p].reshape(-1))
-                    if p != agent.id:
-                        kv_all_detached[-1] = kv_all_detached[-1].detach()
-                kv_all_detached = torch.stack(kv_all_detached)
-                agent_obs = torch.cat((obs, kv_all_detached, self.q_all), dim=1)
-
-                choices.append(agent.make_decision(agent_obs, epsilon))
+        choices = [agent.make_decision(self.q_all[agent.id], epsilon) for agent in self.Agents]
 
         if self.eval:
             for p1 in range(self.cfg.common.players - 1):

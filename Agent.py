@@ -18,21 +18,21 @@ class Agent:
         list_params = list(self.model.parameters())
 
         self.transformer = None
-        self.start_messages = dict()
+        self.start_kv = []
+        self.kv = []
         if cfg.negotiation.use:
             self.transformer = []
             for step in range(self.negotiation_steps):
                 self.transformer.append(AttentionLayer(cfg))
                 list_params = list_params + list(self.transformer[-1].parameters())
 
-            for p in range(cfg.common.players):
-                if p != id:
                     #if self.negotiable:
                     #    self.start_messages[str(p)] = torch.nn.Parameter(torch.randn(cfg.negotiation.space,
                     #                                                                 requires_grad=True))
                     #    list_params = list_params + [self.start_messages[str(p)]]
                     #else:
-                    self.start_messages[str(p)] = torch.zeros(cfg.negotiation.space)
+                self.start_kv = torch.stack([torch.zeros(cfg.negotiation.space) for p in range(cfg.common.players - 1)])
+            self.kv = self.start_kv
 
         self.optimizer = optim.Adam(list_params, lr=cfg.train.lr)
 
@@ -55,26 +55,25 @@ class Agent:
     def reset_memory(self):
         pass
 
-    def negotiate(self, kv, q, step):
-        new_messages = self.start_messages
-
+    def negotiate(self, q, step):
         if self.negotiable and step < self.negotiation_steps:
 
+            if step == 0:
+                self.kv = self.start_kv
+
+            print(q.shape, self.kv.shape)
+
             # concatenate one-hot vector to encode agent position
-            emb = torch.eye(len(kv))
-            kv = torch.cat((emb, kv), dim=1)
+            emb = torch.eye(len(self.kv))
+            kv = torch.cat((emb, self.kv), dim=1)
             q = torch.cat((emb, q), dim=1)
 
-            messages = self.transformer[step](kv, q)
-            ind = 0
-            for p in range(self.cfg.common.players):
-                if p != self.id:
-                    new_messages[str(p)] = messages[ind]
-                    ind += 1
+            self.kv = self.transformer[step](kv, q)
 
-        return new_messages
+    def make_decision(self, q, epsilon):
+        if self.cfg.negotiation.use:
+            obs = torch.cat((q, self.kv), dim=1)
 
-    def make_decision(self, obs, epsilon):
         a_logits, d_logits, V = self.model(obs)
 
         a_policy = functional.softmax(a_logits, dim=-1)
@@ -97,10 +96,10 @@ class Agent:
             d_entropy = (d_policy * torch.log_softmax(d_logits, dim=-1)).sum()
             self.entropy.append(a_entropy + d_entropy)
         else:
-            self.attacks_metric[a_action] += 1
-            self.defends_metric[d_action] += 1
+            self.attacks_metric[a_action if a_action < self.id else (a_action + 1)] += 1
+            self.defends_metric[d_action if d_action < self.id else (d_action + 1)] += 1
 
-        return [a_action, d_action]
+        return [a_action if a_action < self.id else (a_action + 1), d_action if d_action < self.id else (d_action + 1)]
 
     def rewarding(self, reward):
         if self.eval:

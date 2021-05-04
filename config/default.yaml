@@ -3,7 +3,7 @@ mp:
   games: 1000
   stat_file: stat.pickle
 common:
-  use_obs: True
+  use_obs: False
   shuffle: False
   round_episodes: 20
   players: 3
@@ -13,7 +13,7 @@ common:
 train:
   do_backward: True  # use False to make agents non-trainable
   episodes: 10000
-  lr: 0.002
+  lr: 0.005
   gamma: 1.
   hidden_size: 3
   value_loss_penalize: 0.5
@@ -27,7 +27,7 @@ negotiation:
   is_channel_open: True
   space: 3
   players: 2
-  steps: [1]  # len(steps) must be equal to 1 or the number of players
+  steps: [2]  # len(steps) must be equal to 1 or the number of players
 embeddings:
   use: False
   space: 64
