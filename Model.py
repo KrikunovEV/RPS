@@ -69,7 +69,7 @@ class SiamMLP(nn.Module):
 
         self.policies = nn.Sequential(
             nn.Linear(obs_space, obs_space // 2),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
             nn.Linear(obs_space // 2, 2),
         )
         self.V = nn.Linear(2 * (action_space - 1), 1)

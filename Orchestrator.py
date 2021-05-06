@@ -15,7 +15,7 @@ class Orchestrator:
         if not cfg.common.use_obs:
             obs_space = 0
         if cfg.negotiation.use:
-            obs_space += cfg.negotiation.space * 2
+            obs_space += cfg.negotiation.space  # * 2
         if cfg.embeddings.use:
             obs_space += cfg.embeddings.space
 
@@ -97,4 +97,5 @@ class Orchestrator:
                 'reward_list': [agent.reward_metric for agent in self.Agents],
                 'reward_eval_list': [agent.reward_eval_metric for agent in self.Agents],
                 'attacks_list': [agent.attacks_metric for agent in self.Agents],
-                'defends_list': [agent.defends_metric for agent in self.Agents]}
+                'defends_list': [agent.defends_metric for agent in self.Agents],
+                'lr': self.Agents[0].lrs}

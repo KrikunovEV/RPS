@@ -164,6 +164,17 @@ def visualize_metrics(metrics_dict: dict, cfg: EasyDict, directory: str = None):
     if directory is not None:
         plt.savefig(f'{directory}/a2c_loss.png')
 
+    # LR
+    fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+    ax.set_title('Learning rate', fontsize=18)
+    ax.set_xlabel('# of episode', fontsize=16)
+    ax.set_ylabel('lr value', fontsize=16)
+    ax.tick_params(labelsize=13)
+    plt.plot(metrics_dict['lr'])
+    fig.tight_layout()
+    if directory is not None:
+        plt.savefig(f'{directory}/lr.png')
+
     # CUMULATIVE REWARD
     fig, ax = plt.subplots(1, 2, figsize=(16, 9))
     ax[0].set_title(f'Cumulative reward on train', fontsize=18)

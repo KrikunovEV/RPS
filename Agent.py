@@ -14,16 +14,18 @@ class Agent:
         self.agent_label = f'{id + 1}' + ('n' if self.negotiable else '')
         self.eval = False
         self.negotiation_steps = cfg.negotiation.steps[id]
+        self.train_step = 1
 
         self.model = SiamMLP(obs_space, action_space, cfg)
-        list_params = list(self.model.parameters())
+        self.optimizer = optim.Adam(self.model.parameters(), lr=cfg.train.lr)
 
         self.transformer = None
+        self.negotiation_optimizer = None
         self.start_kv = []
         self.kv = []
         if cfg.negotiation.use and self.negotiable:
             self.start_kv = nn.Parameter(torch.zeros((cfg.common.players - 1, cfg.negotiation.space)))
-            list_params = list_params + [self.start_kv]
+            list_params = [self.start_kv]
             self.kv = self.start_kv
             emb = torch.eye(len(self.kv))
 
@@ -31,11 +33,10 @@ class Agent:
             for step in range(self.negotiation_steps):
                 self.transformer.append(NegotiationLayer(cfg, emb))
                 list_params = list_params + list(self.transformer[-1].parameters())
+            self.negotiation_optimizer = optim.Adam(list_params, lr=0., betas=cfg.train.betas)
         else:
-            self.start_kv = torch.zeros((cfg.common.players - 1, cfg.negotiation.space))
+            self.start_kv = torch.normal(0, 0.25, (cfg.common.players - 1, cfg.negotiation.space))
         self.kv = self.start_kv
-
-        self.optimizer = optim.Adam(list_params, lr=cfg.train.lr)
 
         self.logs = []
         self.value = []
@@ -45,6 +46,7 @@ class Agent:
         # only in train
         self.loss_metric = []
         self.reward_metric = []
+        self.lrs = []
         # only in eval mode
         self.reward_eval_metric = []
         self.attacks_metric = np.zeros(cfg.common.players, dtype=np.int)
@@ -65,10 +67,10 @@ class Agent:
             self.kv = self.transformer[step](self.kv, q)
 
     def make_decision(self, obs, epsilon):
-        if self.cfg.negotiation.use:
-            obs = torch.cat((obs, self.kv), dim=1)
+        #if self.cfg.negotiation.use:
+        #    obs = torch.cat((obs, self.kv), dim=1)
 
-        a_logits, d_logits, V = self.model(obs)
+        a_logits, d_logits, V = self.model(self.kv)
 
         a_policy = functional.softmax(a_logits, dim=-1)
         d_policy = functional.softmax(d_logits, dim=-1)
@@ -117,8 +119,12 @@ class Agent:
             loss = self.cfg.train.value_loss_penalize * value_loss + policy_loss
 
             self.optimizer.zero_grad()
+            if self.negotiable:
+                self.negotiation_optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+            if self.negotiable:
+                self.negotiation_optimizer.step()
 
             self.loss_metric.append(loss.item())
         else:
@@ -128,3 +134,11 @@ class Agent:
         self.logs = []
         self.entropy = []
         self.value = []
+
+        if self.negotiable:
+            lrate = self.cfg.train.hidden_size ** (-0.5)
+            lrate *= min(self.train_step ** (-0.5), self.train_step * self.cfg.train.warmup_episodes ** (-1.5))
+            self.train_step += 1
+            self.lrs.append(lrate)
+            for param_group in self.negotiation_optimizer.param_groups:
+                param_group['lr'] = lrate

@@ -71,7 +71,7 @@ def run_game(cfg, game: str, debug: bool = False):
 if __name__ == '__main__':
     cfg = util.load_config('config/default.yaml')
 
-    metrics_dict = run_game(cfg=cfg, game='test2vs1', debug=True)
+    metrics_dict = run_game(cfg=cfg, game='test2vs1_32nspace_0.0001', debug=True)
 
     util.log_metrics(metrics_dict, cfg)
     util.print_game_stats(metrics_dict, cfg)
